@@ -1,0 +1,47 @@
+[
+  {
+    "term": "attention head",
+    "translation": "dikkat başı",
+    "notes": "Yapay zeka literatüründeki standart Türkçe karşılık."
+  },
+  {
+    "term": "multi-head attention",
+    "translation": "çoklu başlık dikkati",
+    "notes": "Transformer modellerindeki dikkat yapısı."
+  },
+  {
+    "term": "residual connection",
+    "translation": "artık bağlantı",
+    "notes": "Derin öğrenmedeki katman atlama bağlantısı."
+  },
+  {
+    "term": "scaled dot-product attention",
+    "translation": "ölçeklenmiş nokta-çarpım dikkati",
+    "notes": "Matematiksel dikkat türü."
+  },
+  {
+    "term": "layer normalization",
+    "translation": "katman normalizasyonu",
+    "notes": "Makine öğrenimi normalizasyon tekniği."
+  },
+  {
+    "term": "self-attention",
+    "translation": "kendine dikkat",
+    "notes": "Öz-dikkat olarak da bilinir."
+  },
+  {
+    "term": "feed-forward network",
+    "translation": "ileri besleme ağı",
+    "notes": "Yapay sinir ağlarındaki standart terim."
+  },
+  {
+    "term": "encoder",
+    "translation": "kodlayıcı",
+    "notes": "Girdi dizisini işleyen kısım."
+  },
+  {
+    "term": "decoder",
+    "translation": "çözücü",
+    "notes": "Çıktı dizisini üreten kısım."
+  }
+]

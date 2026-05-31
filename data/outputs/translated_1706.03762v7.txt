@@ -1,0 +1,306 @@
+Google, uygun atıf sağlandığı takdirde, bu makaledeki tabloları ve şekilleri yalnızca gazetecilik veya akademik çalışmalar için yeniden üretme izni vermektedir.
+
+Dikkatiniz Tamamen Gerekiyor  
+Ashish Vaswani∗  
+Google Brain  
+avaswani@google.com  
+Noam Shazeer∗  
+Google Brain  
+noam@google.com  
+Niki Parmar∗  
+Google Research  
+nikip@google.com  
+Jakob Uszkoreit∗  
+Google Research  
+usz@google.com  
+Llion Jones∗  
+Google Research  
+llion@google.com  
+Aidan N. Gomez∗†  
+Toronto Üniversitesi  
+aidan@cs.toronto.edu  
+Łukasz Kaiser∗  
+Google Brain  
+lukaszkaiser@google.com  
+Illia Polosukhin∗‡  
+illia.polosukhin@gmail.com  
+
+Özet  
+Günümüzdeki baskın sıralı dönüştürme modelleri, bir kodlayıcı ve bir çözücü içeren karmaşık tekrarlayan veya evrişimli sinir ağlarına dayanmaktadır. En iyi performans gösteren modeller, kodlayıcı ve çözücüyü bir dikkat mekanizması ile bağlar. Biz, tekrarlama ve evrişimleri tamamen ortadan kaldırarak yalnızca dikkat mekanizmalarına dayanan yeni ve basit bir ağ mimarisi olan Transformer'ı öneriyoruz. İki makine çevirisi görevinde yapılan deneyler, bu modellerin kalitede üstün olduğunu, daha paralel çalışabildiğini ve eğitim için önemli ölçüde daha az zaman gerektirdiğini göstermektedir. Modelimiz, WMT 2014 İngilizce-Almanca çeviri görevinde 28.4 BLEU puanı elde ederek, mevcut en iyi sonuçları, topluluklar dahil, 2 BLEU puanından fazla bir iyileştirme ile geçmektedir. WMT 2014 İngilizce-Fransızca çeviri görevinde, modelimiz 8 GPU üzerinde 3.5 gün eğitim aldıktan sonra 41.8'lik yeni bir tek model en yüksek BLEU puanı belirlemektedir; bu, literatürdeki en iyi modellerin eğitim maliyetlerinin küçük bir kısmını oluşturmaktadır. Transformer'ın, büyük ve sınırlı eğitim verileri ile İngilizce bileşen ayrıştırma görevine başarıyla uygulanarak diğer görevlerde de iyi genelleştiğini göstermekteyiz.
+
+∗Eşit katkı. Listeleme sırası rastgeledir. Jakob, RNN'leri kendi kendine dikkat ile değiştirmeyi önerdi ve bu fikri değerlendirme çabasını başlattı. Ashish, Illia ile birlikte, ilk Transformer modellerini tasarlayıp uyguladı ve bu çalışmanın her yönünde kritik bir rol oynadı. Noam, ölçeklenmiş nokta-çarpan dikkat, çok başlı dikkat ve parametre içermeyen konum temsilini önerdi ve neredeyse her detayda yer alan diğer kişi oldu. Niki, orijinal kod tabanımızda ve tensor2tensor'da sayısız model varyantını tasarladı, uyguladı, ayarladı ve değerlendirdi. Llion, yeni model varyantları ile de deneyler yaptı, ilk kod tabanımızdan sorumluydu ve verimli çıkarım ve görselleştirmelerden sorumluydu. Łukasz ve Aidan, tensor2tensor'ın çeşitli parçalarını tasarlamak ve uygulamak için sayısız uzun günler harcadı, önceki kod tabanımızı değiştirdi, sonuçları büyük ölçüde iyileştirdi ve araştırmamızı büyük ölçüde hızlandırdı.
+
+†Google Brain'de çalışırken gerçekleştirilen iş.  
+‡Google Research'te çalışırken gerçekleştirilen iş.  
+31. Sinir Bilgisi İşleme Sistemleri Konferansı (NIPS 2017), Long Beach, CA, ABD.  
+arXiv:1706.03762v7 [cs.CL] 2 Ağu 2023
+
+### Giriş
+
+Tekrarlayan sinir ağları, uzun kısa süreli bellek ve kapılı tekrarlayan sinir ağları, özellikle dil modelleme ve makine çevirisi gibi sıralı modelleme ve transdüksiyon problemlerinde en ileri teknoloji yaklaşımlar olarak sağlam bir şekilde yerleşmiştir. Bu alanda, tekrarlayan dil modelleri ve kodlayıcı-çözücü mimarilerinin sınırlarını zorlamak için sayısız çaba devam etmektedir.
+
+Tekrarlayan modeller, genellikle giriş ve çıkış dizilerinin sembol pozisyonları boyunca hesaplamayı bölümlendirir. Bu modeller, pozisyonları hesaplama zamanındaki adımlara hizalayarak, önceki gizli durum ve mevcut pozisyon için girişi bir fonksiyon olarak kullanarak gizli durumların bir dizisini üretir. Bu ardışık yapı, eğitim örnekleri içinde paralelleşmeyi engeller ve daha uzun dizilerde bellek kısıtlamaları nedeniyle toplu işlemeyi sınırlar. Son çalışmalar, faktörizasyon hileleri ve koşullu hesaplama yoluyla hesaplama verimliliğinde önemli iyileştirmeler sağlamış, aynı zamanda model performansını da artırmıştır. Ancak, ardışık hesaplamanın temel kısıtlaması devam etmektedir.
+
+Dikkat mekanizmaları, çeşitli görevlerde bağımlılıkları modelleme olanağı sağlayarak etkileyici sıralı modelleme ve transdüksiyon modellerinin ayrılmaz bir parçası haline gelmiştir. Bu mekanizmalar, giriş veya çıkış dizilerindeki mesafelerine bakılmaksızın bağımlılıkları modellemeyi mümkün kılar. Ancak, genellikle bu tür dikkat mekanizmaları tekrarlayan bir ağ ile birlikte kullanılmaktadır.
+
+Bu çalışmada, döngüden kaçınan ve bunun yerine giriş ve çıkış arasındaki küresel bağımlılıkları çekmek için tamamen bir dikkat mekanizmasına dayanan Transformer'ı öneriyoruz. Transformer, önemli ölçüde daha fazla paralelleşmeye olanak tanır ve sekiz P100 GPU'da sadece on iki saat eğitim aldıktan sonra çeviri kalitesinde yeni bir en ileri teknoloji seviyesine ulaşabilir.
+
+### Arka Plan
+
+Ardışık hesaplamayı azaltma hedefi, Genişletilmiş Sinir GPU, ByteNet ve ConvS2S gibi modellerin temelini de oluşturmaktadır. Bu modeller, konvolüsyonel sinir ağlarını temel yapı taşı olarak kullanarak, tüm giriş ve çıkış pozisyonları için gizli temsilleri paralel olarak hesaplar. Bu modellerde, iki rastgele giriş veya çıkış pozisyonundan sinyalleri ilişkilendirmek için gereken işlem sayısı, pozisyonlar arasındaki mesafeye bağlı olarak artmaktadır; ConvS2S için lineer ve ByteNet için logaritmik olarak. Bu, uzak pozisyonlar arasındaki bağımlılıkları öğrenmeyi daha zor hale getirir. Transformer'da bu, sabit bir işlem sayısına düşürülmüştür; ancak, dikkat ağırlıklı pozisyonların ortalamasını almanın etkisi nedeniyle etkin çözünürlüğün azalması pahasına. Bu etkiyi, Çoklu Başlık Dikkati ile dengelemekteyiz.
+
+Kendi kendine dikkat, bir dizinin farklı pozisyonlarını ilişkilendiren ve dizinin bir temsilini hesaplamak için kullanılan bir dikkat mekanizmasıdır. Kendi kendine dikkat, okuma anlama, soyut özetleme, metin çıkarımı ve görev bağımsız cümle temsilleri öğrenme gibi çeşitli görevlerde başarıyla kullanılmıştır.
+
+Uçtan uca bellek ağları, sıralı hizalanmış döngü yerine tekrarlayan bir dikkat mekanizmasına dayanmaktadır ve basit dilde soru yanıtlama ve dil modelleme görevlerinde iyi performans gösterdiği kanıtlanmıştır.
+
+Ancak, bildiğimiz kadarıyla, Transformer tamamen kendi kendine dikkat mekanizmasına dayanan ilk transdüksiyon modelidir; bu, giriş ve çıkış temsillerini hesaplamak için sıralı hizalanmış RNN'ler veya konvolüsyon kullanmadan gerçekleştirilir. Aşağıdaki bölümlerde, Transformer'ı tanımlayacak, kendi kendine dikkati motive edecek ve diğer modellere göre avantajlarını tartışacağız.
+
+### Model Mimarisi
+
+En rekabetçi sinir sıralı transdüksiyon modellerinin çoğu bir kodlayıcı-çözücü yapısına sahiptir. Burada, kodlayıcı, sembol temsillerinin bir giriş dizisini sürekli temsiller dizisine eşler. Bu temsiller verildiğinde, çözücü daha sonra birer birer sembollerden oluşan bir çıkış dizisi üretir. Her adımda model otomatik regresif olup, bir sonraki sembolü üretirken daha önce üretilen sembolleri ek girdi olarak kullanır.
+
+Şekil 1: Dönüştürücü - model mimarisi.  
+Dönüştürücü, hem kodlayıcı hem de çözücü için yığılmış kendine dikkat ve nokta bazlı, tamamen bağlı katmanlar kullanan bu genel mimariyi takip eder; bu, Şekil 1'in sol ve sağ yarılarında gösterilmiştir.  
+
+3.1 Kodlayıcı ve Çözücü Yığınları  
+Kodlayıcı: Kodlayıcı, altı özdeş katmandan oluşan bir yığından meydana gelir. Her katmanda iki alt katman bulunur. İlk alt katman, çoklu başlık kendine dikkat mekanizmasıdır; ikinci alt katman ise basit, konum bazlı tamamen bağlı ileri besleme ağıdır. Her iki alt katmanın etrafında artık bağlantı kullanıyoruz ve ardından katman normalizasyonu uygulanıyor. Yani, her alt katmanın çıktısı LayerNorm(x + Sublayer(x)) şeklindedir; burada Sublayer(x), alt katmanın kendisi tarafından uygulanan işlevdir. Bu artık bağlantıları kolaylaştırmak için, modeldeki tüm alt katmanlar ve gömme katmanları, 512 boyutunda çıktılar üretir.  
+
+Çözücü: Çözücü de altı özdeş katmandan oluşan bir yığından meydana gelir. Her kodlayıcı katmanındaki iki alt katmana ek olarak, çözücü, kodlayıcı yığınının çıktısı üzerinde çoklu başlık dikkatini gerçekleştiren üçüncü bir alt katman ekler. Kodlayıcıda olduğu gibi, her alt katmanın etrafında artık bağlantılar kullanıyoruz ve ardından katman normalizasyonu uygulanıyor. Ayrıca, çözücü yığındaki kendine dikkat alt katmanını, konumların sonraki konumlara dikkat etmesini önlemek için değiştiriyoruz. Bu maskeleme, çıktı gömme katmanlarının bir konum kaydırılmış olmasıyla birleştiğinde, i konumundaki tahminlerin yalnızca i'den küçük konumlardaki bilinen çıktılara dayanmasını sağlar.  
+
+3.2 Dikkat  
+Dikkat işlevi, bir sorgu ile bir anahtar-değer çiftleri kümesini bir çıktıya eşleme olarak tanımlanabilir; burada sorgu, anahtarlar, değerler ve çıktı hepsi vektörlerdir. Çıktı, değerlerin ağırlıklı toplamı olarak hesaplanır ve her değere atanan ağırlık, sorgunun ilgili anahtar ile olan uyumluluk işlevi tarafından belirlenir.  
+
+3.2.1 Ölçeklenmiş Nokta-Çarpım Dikkati  
+Özel dikkatimizi "Ölçeklenmiş Nokta-Çarpım Dikkati" olarak adlandırıyoruz. Girdi, belirli bir boyutta sorgular ve anahtarlar ile değerlerden oluşur. Sorgunun tüm anahtarlarla nokta çarpımlarını hesaplıyoruz, her birini belirli bir değerle bölüyoruz ve değerler üzerindeki ağırlıkları elde etmek için bir softmax işlevi uyguluyoruz. Pratikte, bir dizi sorgu üzerinde aynı anda dikkat işlevini hesaplıyoruz ve bunları bir matris Q'ya paketliyoruz. Anahtarlar ve değerler de K ve V matrislerine paketlenir. Çıktılar matrisini şu şekilde hesaplıyoruz:  
+Attention(Q, K, V) = softmax( QK^T / √dk )V  
+
+En yaygın kullanılan iki dikkat işlevi, eklemeli dikkat ve nokta-çarpım (çarpanlı) dikkattir. Nokta-çarpım dikkati, ölçekleme faktörü dışında algoritmamıza eşdeğerdir. Eklemeli dikkat, uyumluluk işlevini tek bir gizli katmana sahip bir ileri besleme ağı kullanarak hesaplar. İkisi teorik karmaşıklık açısından benzer olsa da, nokta-çarpım dikkati pratikte çok daha hızlı ve daha alan verimlidir, çünkü yüksek derecede optimize edilmiş matris çarpma kodu kullanılarak uygulanabilir. Küçük değerler için iki mekanizma benzer performans gösterirken, eklemeli dikkat, daha büyük değerler için ölçekleme olmadan nokta-çarpım dikkatini geride bırakır. Büyük değerler için nokta çarpımlarının büyüklüğünün arttığını ve softmax işlevini son derece küçük gradyanların olduğu bölgelere ittiğini düşünüyoruz. Bu etkiyi dengelemek için, nokta çarpımlarını belirli bir değerle ölçeklendiriyoruz.  
+
+3.2.2 Çoklu Başlık Dikkati  
+Tek bir dikkat işlevi gerçekleştirmek yerine, sorguları, anahtarları ve değerleri belirli boyutlara farklı, öğrenilmiş doğrusal projeksiyonlarla birkaç kez doğrusal olarak projekte etmenin faydalı olduğunu bulduk. Bu projekte edilmiş sorgular, anahtarlar ve değerler üzerinde ardından dikkat işlevini paralel olarak gerçekleştiriyoruz ve belirli boyutlarda çıktılar elde ediyoruz.
+
+Çıktı değerleri birleştirilir ve yeniden projekte edilerek son değerler elde edilir; bu durum Şekil 2'de gösterilmektedir. Çoklu başlı dikkat, modelin farklı temsil alt alanlarından ve farklı pozisyonlardaki bilgilere aynı anda odaklanabilmesini sağlar. Tek bir dikkat başlığı ile bu ortalama alma işlemi engellenir.
+
+MultiHead(Q, K, V) = Concat(head 1, ..., head h)W O
+
+Burada head i = Attention(QW Q i , KW K i , V W V i )
+
+Projeksiyonlar, parametre matrisleri W Q i ∈ R^dmodel×dk, W K i ∈ R^dmodel×dk, W V i ∈ R^dmodel×dv ve W O ∈ R^hdv×dmodel'dir.
+
+Bu çalışmada, 8 paralel dikkat başlığı (h = 8) kullanıyoruz. Her biri için dk = dv = dmodel/h = 64 kullanıyoruz. Her başlığın boyutunun azaltılması sayesinde, toplam hesaplama maliyeti, tam boyutlu tek başlı dikkat ile benzerdir.
+
+3.2.3 Modelimizde Dikkatin Uygulamaları
+
+Transformer, çoklu başlı dikkati üç farklı şekilde kullanır:
+- "Kodlayıcı-çözücü dikkati" katmanlarında, sorgular önceki çözücü katmanından gelirken, bellek anahtarları ve değerleri kodlayıcının çıktısından gelir. Bu, çözücünün her pozisyonunun giriş dizisindeki tüm pozisyonlara dikkat etmesine olanak tanır. Bu mekanizma, diziden diziye modellerdeki tipik kodlayıcı-çözücü dikkat mekanizmalarını taklit eder.
+- Kodlayıcı, kendine dikkat katmanlarını içerir. Bu katmanlarda tüm anahtarlar, değerler ve sorgular aynı yerden, yani kodlayıcının önceki katmanının çıktısından gelir. Kodlayıcıdaki her pozisyon, kodlayıcının önceki katmanındaki tüm pozisyonlara dikkat edebilir.
+- Benzer şekilde, çözücünün kendine dikkat katmanları, çözücünün her pozisyonunun o pozisyona kadar ve dahil olmak üzere tüm pozisyonlara dikkat etmesine olanak tanır. Otoregresif özelliği korumak için çözücünün soldan sağa bilgi akışını engellememiz gerekir. Bunu, yasadışı bağlantılara karşılık gelen softmax girişindeki tüm değerleri maskeleyerek (−∞ olarak ayarlayarak) ölçeklenmiş nokta çarpan dikkat içinde uygularız. Şekil 2'ye bakın.
+
+3.3 Pozisyon Bazında İleri Besleme Ağları
+
+Dikkat alt katmanlarına ek olarak, kodlayıcı ve çözücümüzün her katmanında, her pozisyona ayrı ve aynı şekilde uygulanan tam bağlantılı bir ileri besleme ağı bulunur. Bu, arasında ReLU aktivasyonu olan iki lineer dönüşümden oluşur.
+
+FFN(x) = max(0, xW1 + b1)W2 + b2 (2)
+
+Lineer dönüşümler farklı pozisyonlar arasında aynı olmasına rağmen, katmanlar arasında farklı parametreler kullanır. Bunu tanımlamanın bir diğer yolu, 1 boyutlu çekirdek boyutuna sahip iki konvolüsyon olarak ifade etmektir. Giriş ve çıkışın boyutu dmodel = 512'dir ve iç katmanın boyutu dff = 2048'dir.
+
+3.4 Gömme ve Softmax
+
+Diğer dizilim dönüştürme modellerine benzer şekilde, giriş ve çıkış token'larını dmodel boyutunda vektörlere dönüştürmek için öğrenilmiş gömmeleri kullanıyoruz. Ayrıca, çözücü çıktısını tahmin edilen bir sonraki token olasılıklarına dönüştürmek için alışılmış öğrenilmiş lineer dönüşümü ve softmax fonksiyonunu kullanıyoruz. Modelimizde, iki gömme katmanı ve pre-softmax lineer dönüşüm arasında aynı ağırlık matrisini paylaşıyoruz. Gömme katmanlarında, bu ağırlıkları √dmodel ile çarpıyoruz.
+
+Tablo 1: Farklı katman türleri için maksimum yol uzunlukları, katman başına karmaşıklık ve minimum ardışık işlem sayısı. Burada n dizinin uzunluğunu, d temsil boyutunu, k konvolüsyonların çekirdek boyutunu ve r kısıtlı kendine dikkat mekanizmasındaki komşuluk boyutunu temsil eder.
+
+| Katman Türü | Katman Başına Karmaşıklık | Ardışık İşlem Sayısı | Maksimum Yol Uzunluğu |
+|-------------|----------------------------|----------------------|-----------------------|
+| Kendine Dikkat | O(n² · d) | O(1) | O(1) |
+| Tekrarlayan | O(n · d²) | O(n) | O(n) |
+| Konvolüsyonel | O(k · n · d²) | O(1) | O(logk(n)) |
+| Kendine Dikkat (kısıtlı) | O(r · n · d) | O(1) | O(n/r) |
+
+3.5 Pozisyonel Kodlama
+
+Modelimizde tekrarlama ve konvolüsyon bulunmadığından, dizinin sırasını kullanabilmesi için dizideki tokenların göreli veya mutlak konumları hakkında bilgi eklememiz gerekmektedir. Bu amaçla, kodlayıcı ve çözücü yığınlarının alt kısımlarına "pozisyonel kodlamalar" ekliyoruz. Pozisyonel kodlamalar, gömme boyutu d_model ile aynı boyuta sahiptir, böylece ikisi toplanabilir. Pozisyonel kodlamalar için birçok seçenek vardır; öğrenilmiş ve sabit olanlar [9].
+
+Bu çalışmada, farklı frekanslarda sinüs ve kosinüs fonksiyonları kullanıyoruz:
+
+P E(pos,2i) = sin(pos/10000^(2i/d_model))  
+P E(pos,2i+1) = cos(pos/10000^(2i/d_model))
+
+Burada pos konumu ve i boyutu temsil eder. Yani, pozisyonel kodlamanın her boyutu bir sinüzoid ile ilişkilidir. Dalga boyları 2π'den 10000 · 2π'ye kadar geometrik bir ilerleme oluşturur. Bu fonksiyonu seçtik çünkü modelin göreli pozisyonlara dikkat etmeyi kolayca öğrenmesini sağlayacağını varsaydık; çünkü herhangi bir sabit kaydırma k için, P E(pos+k), P E(pos'un lineer bir fonksiyonu olarak temsil edilebilir.
+
+Ayrıca, öğrenilmiş pozisyonel gömme [9] kullanmayı da denedik ve iki versiyonun neredeyse aynı sonuçlar ürettiğini bulduk (bkz. Tablo 3 satır (E)). Sinüzoidal versiyonu seçtik çünkü modelin eğitim sırasında karşılaşılan dizilerden daha uzun dizilere genelleme yapmasına olanak tanıyabilir.
+
+4 Neden Kendine Dikkat
+
+Bu bölümde, kendine dikkat katmanlarının, bir değişken uzunluktaki sembol temsili dizisini (x1, ..., xn) başka bir eşit uzunluktaki diziye (z1, ..., zn) eşlemek için yaygın olarak kullanılan tekrarlayan ve konvolüsyonel katmanların çeşitli yönlerini karşılaştırıyoruz. Burada xi, zi ∈ Rd, tipik bir dizi dönüştürme kodlayıcısındaki veya çözücüsündeki gizli bir katman gibi. Kendine dikkati kullanma motivasyonumuzu üç temel kriterle değerlendiriyoruz.
+
+Birincisi, katman başına toplam hesaplama karmaşıklığıdır. İkincisi, minimum ardışık işlem sayısı ile ölçülen paralelleştirilebilecek hesaplama miktarıdır. Üçüncüsü, ağdaki uzun menzilli bağımlılıklar arasındaki yol uzunluğudur. Uzun menzilli bağımlılıkları öğrenmek, birçok dizi dönüştürme görevinde önemli bir zorluktur. Böyle bağımlılıkları öğrenme yeteneğini etkileyen bir ana faktör, ileri ve geri sinyallerin ağda katetmesi gereken yol uzunluğudur. Giriş ve çıkış dizileri arasındaki herhangi bir pozisyon kombinasyonu arasındaki bu yollar ne kadar kısa olursa, uzun menzilli bağımlılıkları öğrenmek o kadar kolaydır [12]. Bu nedenle, farklı katman türlerinden oluşan ağlarda herhangi iki giriş ve çıkış pozisyonu arasındaki maksimum yol uzunluğunu da karşılaştırıyoruz.
+
+Tablo 1'de belirtildiği gibi, bir kendine dikkat katmanı, sabit sayıda ardışık işlemle tüm pozisyonları bağlarken, bir tekrarlayan katman O(n) ardışık işlem gerektirir. Hesaplama karmaşıklığı açısından, kendine dikkat katmanları, dizi uzunluğu arttıkça tekrarlayan katmanlardan daha hızlıdır.
+
+Uzunluk n, genellikle makine çevirilerinde kullanılan en son modellerin cümle temsillerindeki boyut d'den daha küçüktür; bu, kelime parçaları ve bayt çiftleri gibi temsillerde sıkça karşılaşılan bir durumdur. Çok uzun dizilerle ilgili görevlerde hesaplama performansını artırmak için, öz-dikkat mekanizması (self-attention mechanism), ilgili çıktı pozisyonunun etrafındaki girdi dizisinde yalnızca r boyutunda bir komşuluğu dikkate alacak şekilde sınırlandırılabilir. Bu yaklaşım, maksimum yol uzunluğunu O(n/r) seviyesine çıkaracaktır. Bu yöntemi gelecekteki çalışmalarımızda daha ayrıntılı olarak incelemeyi planlıyoruz.
+
+Çekirdek genişliği k < n olan tek bir konvolüsyon katmanı, tüm girdi ve çıktı pozisyon çiftlerini bağlamaz. Bunu sağlamak için, ardışık çekirdekler durumunda O(n/k) konvolüsyon katmanı yığını veya genişletilmiş konvolüsyonlar durumunda O(logk(n)) katmanı gerekir; bu da ağdaki herhangi iki pozisyon arasındaki en uzun yolların uzunluğunu artırır. Konvolüsyon katmanları genellikle tekrarlayan katmanlardan k kat daha maliyetlidir. Ancak, ayrılabilir konvolüsyonlar karmaşıklığı önemli ölçüde azaltarak O(k · n · d + n · d²) seviyesine indirir. Yine de, k = n olsa bile, ayrılabilir bir konvolüsyonun karmaşıklığı, modelimizde kullandığımız öz-dikkat katmanı ve noktasal ileri besleme katmanının birleşimine eşittir.
+
+Yan fayda olarak, öz-dikkat daha yorumlanabilir modeller üretebilir. Modellerimizden elde edilen dikkat dağılımlarını inceliyor ve ek bölümde örnekler sunarak tartışıyoruz. Bireysel dikkat başlıklarının farklı görevleri yerine getirmeyi açıkça öğrendiği gibi, birçok başlığın cümlelerin sözdizimsel ve anlamsal yapısıyla ilgili davranışlar sergilediği görülmektedir.
+
+5 Eğitim  
+Bu bölüm, modellerimiz için eğitim rejimini tanımlar.
+
+5.1 Eğitim Verisi ve Gruplama  
+Yaklaşık 4.5 milyon cümle çiftinden oluşan standart WMT 2014 İngilizce-Almanca veri seti üzerinde eğitim yaptık. Cümleler, yaklaşık 37.000 token içeren paylaşılan bir kaynak-hedef kelime dağarcığı ile bayt çiftleri kodlaması kullanılarak kodlandı. İngilizce-Fransızca için, 36 milyon cümleden oluşan çok daha büyük WMT 2014 İngilizce-Fransızca veri setini kullandık ve token'ları 32.000 kelime parçası kelime dağarcığına böldük. Cümle çiftleri, yaklaşık dizilim uzunluğuna göre gruplandı. Her eğitim grubu, yaklaşık 25.000 kaynak token ve 25.000 hedef token içeren bir cümle çifti seti içeriyordu.
+
+5.2 Donanım ve Program  
+Modellerimizi 8 NVIDIA P100 GPU'ya sahip bir makinede eğittik. Makalede tanımlanan hiperparametreleri kullanan temel modellerimiz için, her eğitim adımı yaklaşık 0.4 saniye sürdü. Temel modellerimizi toplamda 100.000 adım veya 12 saat boyunca eğittik. Büyük modellerimiz için, adım süresi 1.0 saniyeydi. Büyük modeller 300.000 adım (3.5 gün) boyunca eğitildi.
+
+5.3 Optimizatör  
+Adam optimizasyonunu β1 = 0.9, β2 = 0.98 ve ϵ = 10⁻⁹ ile kullandık. Eğitim süresince öğrenme oranını, aşağıdaki formüle göre değiştirdik:  
+lrate = d⁻⁰.⁵ model · min(step_num⁻⁰.⁵, step_num · warmup_steps⁻¹.⁵)  
+Bu, ilk warmup_steps eğitim adımları için öğrenme oranını doğrusal olarak artırmakta ve sonrasında adım numarasının ters kareköküne orantılı olarak azaltmaktadır. warmup_steps = 4000 kullandık.
+
+5.4 Düzenleme  
+Eğitim sırasında üç tür düzenleme uyguluyoruz:
+
+Tablo 2: Dönüştürücü, İngilizce'den Almanca'ya ve İngilizce'den Fransızca'ya yapılan yeni testlerde, önceki en iyi modellerden daha yüksek BLEU puanları elde ediyor ve bunu çok daha düşük bir eğitim maliyetiyle başarıyor.
+
+Model  
+BLEU Eğitim Maliyeti (FLOPs)  
+EN-DE EN-FR EN-DE EN-FR  
+ByteNet [18] 23.75  
+Deep-Att + PosUnk [39] 39.2 1.0 · 10^20  
+GNMT + RL [38] 24.6 39.92 2.3 · 10^19 1.4 · 10^20  
+ConvS2S [9] 25.16 40.46 9.6 · 10^18 1.5 · 10^20  
+MoE [32] 26.03 40.56 2.0 · 10^19 1.2 · 10^20  
+Deep-Att + PosUnk Ensemble [39] 40.4 8.0 · 10^20  
+GNMT + RL Ensemble [38] 26.30 41.16 1.8 · 10^20 1.1 · 10^21  
+ConvS2S Ensemble [9] 26.36 41.29 7.7 · 10^19 1.2 · 10^21  
+Dönüştürücü (temel model) 27.3 38.1 3.3 · 10^18  
+Dönüştürücü (büyük) 28.4 41.8 2.3 · 10^19  
+
+Kalan Dropout: Her bir alt katmanın çıktısına, bu alt katman girişine eklenmeden ve normalleştirilmeden önce dropout [33] uygularız. Ayrıca, kodlayıcı ve çözücü yığınlarındaki gömme ve konumsal kodlamaların toplamlarına da dropout uygularız. Temel model için Pdrop = 0.1 oranını kullanıyoruz.
+
+Etiket Yumuşatma: Eğitim sırasında, ϵls = 0.1 [36] değerinde etiket yumuşatma uyguladık. Bu, karmaşıklığı olumsuz etkileyebilir, çünkü model daha belirsiz olmayı öğrenir; ancak doğruluğu ve BLEU puanını artırır.
+
+Sonuçlar
+
+Makine Çevirisi: WMT 2014 İngilizce'den Almanca'ya çeviri görevinde, büyük dönüştürücü modeli (Tablo 2'de Dönüştürücü (büyük)) daha önce rapor edilen en iyi modelleri (toplamlar dahil) 2.0'dan fazla BLEU ile geçerek 28.4'lük yeni bir en iyi BLEU puanı belirliyor. Bu modelin yapılandırması Tablo 3'ün alt satırında listelenmiştir. Eğitim, 8 P100 GPU'da 3.5 gün sürdü. Hatta temel modelimiz, rekabetçi modellerin herhangi birinin eğitim maliyetinin çok küçük bir kısmında daha önce yayımlanan tüm modelleri ve toplamları geçiyor.
+
+WMT 2014 İngilizce'den Fransızca'ya çeviri görevinde, büyük modelimiz 41.0'lık bir BLEU puanı elde ediyor ve daha önce yayımlanan tüm tekil modelleri, önceki en iyi modelin eğitim maliyetinin 1/4'ünden daha az bir maliyetle geçiyor. İngilizce'den Fransızca'ya eğitilen Dönüştürücü (büyük) modeli, 0.3 yerine Pdrop = 0.1 dropout oranı kullandı.
+
+Temel modeller için, 10 dakikalık aralıklarla yazılan son 5 kontrol noktasının ortalamasını alarak tek bir model kullandık. Büyük modeller için son 20 kontrol noktasının ortalamasını aldık. 4'lük bir beam boyutu ve α = 0.6 [38] uzunluk cezası ile beam arama kullandık. Bu hiperparametreler, geliştirme setinde yapılan deneylerden sonra seçildi. Çıktı uzunluğunun maksimumunu, giriş uzunluğu + 50 olarak ayarladık, ancak mümkün olduğunda erken sonlandırdık [38].
+
+Tablo 2, sonuçlarımızı özetlemekte ve çeviri kalitemizi ve eğitim maliyetlerimizi literatürdeki diğer model mimarileriyle karşılaştırmaktadır. Bir modeli eğitmek için kullanılan kayan nokta işlemlerinin sayısını, eğitim süresi, kullanılan GPU sayısı ve her GPU'nun sürdürülen tek hassasiyetli kayan nokta kapasitesinin bir tahmini ile çarparak tahmin ediyoruz.
+
+Model Varyasyonları: Dönüştürücünün farklı bileşenlerinin önemini değerlendirmek için, temel modelimizi farklı şekillerde değiştirerek, İngilizce'den Almanca'ya çevirideki performanstaki değişikliği ölçtük.
+
+Tablo 3: Dönüştürücü mimarisindeki varyasyonlar. Listelenmeyen değerler, temel modelin değerleriyle aynıdır. Tüm metrikler, İngilizce-Almanca çeviri geliştirme seti olan newstest2013 üzerindedir. Listelenen karmaşıklıklar, byte-pair kodlamamıza göre kelime parçası başınadır ve kelime başına karmaşıklıklarla karşılaştırılmamalıdır.
+
+| N | d_model | d_ff | h | d_k | d_v | Pdrop | ϵ_ls | Eğitim Adımları | PPL (geliştirme) | BLEU (geliştirme) | Parametreler (×10^6) |
+|---|---------|------|---|-----|-----|-------|------|-----------------|-----------------|------------------|---------------------|
+| Temel | 6 | 512 | 2048 | 8 | 64 | 64 | 0.1 | 0.1 | 100K | 4.92 | 25.8 | 65 |
+| (A) | | | | | | | | | | | |
+| | 1 | 512 | 512 | | | | | | 5.29 | 24.9 | |
+| | 4 | 128 | 128 | | | | | | 5.00 | 25.5 | |
+| | 16 | 32 | 32 | | | | | | 4.91 | 25.8 | |
+| | 32 | 16 | 16 | | | | | | 5.01 | 25.4 | |
+| (B) | | | | | | | | | | | |
+| | 16 | | | | | | | | 5.16 | 25.1 | 58 |
+| | 32 | | | | | | | | 5.01 | 25.4 | 60 |
+| (C) | | | | | | | | | | | |
+| | 2 | | | | | | | | 6.11 | 23.7 | 36 |
+| | 4 | | | | | | | | 5.19 | 25.3 | 50 |
+| | 8 | | | | | | | | 4.88 | 25.5 | 80 |
+| | 256 | 32 | 32 | | | | | | 5.75 | 24.5 | 28 |
+| | 1024 | 128 | 128 | | | | | | 4.66 | 26.0 | 168 |
+| | 1024 | | | | | | | | 5.12 | 25.4 | 53 |
+| | 4096 | | | | | | | | 4.75 | 26.2 | 90 |
+| (D) | | | | | | | | | | | |
+| | 0.0 | | | | | | | | 5.77 | 24.6 | |
+| | 0.2 | | | | | | | | 4.95 | 25.5 | |
+| | 0.0 | | | | | | | | 4.67 | 25.3 | |
+| | 0.2 | | | | | | | | 5.47 | 25.7 | |
+| (E) | | | | | | | | | | | |
+| | Sinüzoidal konumsal kodlama yerine öğrenilmiş konumsal gömmeler | | | | | | | | 4.92 | 25.7 | |
+| Büyük | 6 | 1024 | 4096 | 16 | | | 0.3 | | 300K | 4.33 | 26.4 | 213 |
+
+Geliştirme seti olan newstest2013 üzerinde, önceki bölümde açıklandığı gibi ışın arama kullandık, ancak kontrol noktası ortalaması yapmadık. Bu sonuçları Tablo 3'te sunuyoruz.
+
+Tablo 3'teki (A) satırlarında, hesaplama miktarını sabit tutarak dikkat başlıklarının sayısını ve dikkat anahtar ve değer boyutlarını değiştiriyoruz, Bölüm 3.2.2'de açıklandığı gibi. Tek başlıklı dikkatin en iyi ayardan 0.9 BLEU daha kötü olduğunu görmekteyiz; kalite de çok fazla başlık olduğunda düşmektedir.
+
+Tablo 3'teki (B) satırlarında, dikkat anahtar boyutunu d_k azaltmanın model kalitesine zarar verdiğini gözlemliyoruz. Bu, uyumluluğu belirlemenin kolay olmadığını ve nokta çarpımından daha karmaşık bir uyumluluk fonksiyonunun faydalı olabileceğini önermektedir. (C) ve (D) satırlarında, beklenildiği gibi, daha büyük modellerin daha iyi olduğunu ve dropout'un aşırı uyumdan kaçınmada çok yardımcı olduğunu gözlemliyoruz. (E) satırında, sinüzoidal konumsal kodlamamızı öğrenilmiş konumsal gömmelerle değiştiriyoruz ve temel modelle neredeyse aynı sonuçları gözlemliyoruz.
+
+6.3 İngilizce Anlam Gruplama
+
+Dönüştürücünün diğer görevlere genelleşip genelleşemeyeceğini değerlendirmek için İngilizce anlam gruplama üzerinde deneyler gerçekleştirdik. Bu görev belirli zorluklar sunmaktadır: çıktı, güçlü yapısal kısıtlamalara tabidir ve girdi ile kıyaslandığında önemli ölçüde daha uzundur. Ayrıca, RNN sıralı-şekil modelleri küçük veri rejimlerinde en son teknoloji sonuçlarına ulaşamamıştır.
+
+Penn Treebank'ın Wall Street Journal (WSJ) bölümünde d_model = 1024 olan 4 katmanlı bir dönüştürücü eğittik, yaklaşık 40K eğitim cümlesi. Ayrıca, yaklaşık 17M cümle içeren daha büyük yüksek güvenilirlik ve BerkleyParser korpuslarını kullanarak yarı denetimli bir ortamda da eğittik. WSJ yalnızca ayarı için 16K token'lık bir kelime dağarcığı ve yarı denetimli ayar için 32K token'lık bir kelime dağarcığı kullandık.
+
+Dropout, hem dikkat hem de kalıntı, öğrenme oranları ve ışın boyutunu Seçenek 22 geliştirme setinde seçmek için yalnızca az sayıda deney gerçekleştirdik; diğer tüm parametreler İngilizce-Almanca temel çeviri modelinden değişmeden kaldı. Çıktı sırasında, biz...
+
+Tablo 4: Transformer, İngilizce cümle yapısı çözümlemesinde başarılı bir genelleme yapıyor (Sonuçlar WSJ'nin 23. Bölümünde)
+
+Ayrıştırıcı Eğitimi WSJ 23 F1  
+Vinyals & Kaiser ve diğerleri (2014) [37] Sadece WSJ, ayırt edici 88.3  
+Petrov ve diğerleri (2006) [29] Sadece WSJ, ayırt edici 90.4  
+Zhu ve diğerleri (2013) [40] Sadece WSJ, ayırt edici 90.4  
+Dyer ve diğerleri (2016) [8] Sadece WSJ, ayırt edici 91.7  
+Transformer (4 katman) Sadece WSJ, ayırt edici 91.3  
+Zhu ve diğerleri (2013) [40] yarı denetimli 91.3  
+Huang & Harper (2009) [14] yarı denetimli 91.3  
+McClosky ve diğerleri (2006) [26] yarı denetimli 92.1  
+Vinyals & Kaiser ve diğerleri (2014) [37] yarı denetimli 92.1  
+Transformer (4 katman) yarı denetimli 92.7  
+Luong ve diğerleri (2015) [23] çoklu görev 93.0  
+Dyer ve diğerleri (2016) [8] üretken 93.3  
+
+Maksimum çıktı uzunluğunu, girdi uzunluğuna 300 ekleyerek artırdık. Hem sadece WSJ hem de yarı denetimli ayarlar için 21'lik bir beam boyutu ve α = 0.3 kullandık.
+
+Tablo 4'teki sonuçlarımız, görev spesifik ayarlama yapmamış olmamıza rağmen modelimizin şaşırtıcı derecede iyi performans gösterdiğini ve Recurrent Neural Network Grammar [8] hariç, daha önce rapor edilen tüm modellerden daha iyi sonuçlar verdiğini göstermektedir. RNN sıralı-şekil modellerine [37] kıyasla, Transformer, yalnızca 40 bin cümlelik WSJ eğitim setinde eğitildiğinde bile Berkeley Ayrıştırıcıyı [29] geride bırakmaktadır.
+
+Sonuç
+
+Bu çalışmada, tamamen dikkat mekanizmasına dayanan ilk sıralı dönüştürme modelini sunduk ve kodlayıcı-çözücü mimarilerinde en yaygın olarak kullanılan tekrarlayan katmanların yerine çok başlı kendine dikkat mekanizmasını koyduk. Çeviri görevleri için, Transformer, tekrarlayan veya evrişimli katmanlara dayanan mimarilerden çok daha hızlı bir şekilde eğitilebilir. Hem WMT 2014 İngilizce-Almanca hem de WMT 2014 İngilizce-Fransızca çeviri görevlerinde, yeni bir en iyi duruma ulaşıyoruz. İlk görevde en iyi modelimiz, daha önce rapor edilen tüm toplulukları bile geride bırakmaktadır.
+
+Dikkat tabanlı modellerin geleceği bizi heyecanlandırıyor ve bunları diğer görevlere uygulamayı planlıyoruz. Transformer'ı metin dışındaki giriş ve çıkış modlarıyla ilgili sorunlara genişletmeyi ve büyük giriş ve çıkışları (görüntüler, ses ve video gibi) verimli bir şekilde ele almak için yerel ve sınırlı dikkat mekanizmalarını incelemeyi planlıyoruz. Üretimi daha az sıralı hale getirmek, diğer araştırma hedeflerimizden biridir.
+
+Modellerimizi eğitmek ve değerlendirmek için kullandığımız kod, https://github.com/tensorflow/tensor2tensor adresinde mevcuttur.
+
+Teşekkürler Nal Kalchbrenner ve Stephan Gouws'a verimli yorumları, düzeltmeleri ve ilhamları için minnettarız.
+
+Kaynaklar  
+[1] Jimmy Lei Ba, Jamie Ryan Kiros ve Geoffrey E. Hinton. Katman normalizasyonu. arXiv ön baskısı arXiv:1607.06450, 2016.  
+[2] Dzmitry Bahdanau, Kyunghyun Cho ve Yoshua Bengio. Sinirsel makine çevirisi, hizalamayı ve çevirmeyi birlikte öğrenerek. CoRR, abs/1409.0473, 2014.  
+[3] Denny Britz, Anna Goldie, Minh-Thang Luong ve Quoc V. Le. Sinirsel makine çevirisi mimarilerinin büyük keşfi. CoRR, abs/1703.03906, 2017.  
+[4] Jianpeng Cheng, Li Dong ve Mirella Lapata. Makine okuma için uzun kısa vadeli bellek ağları. arXiv ön baskısı arXiv:1601.06733, 2016.
+
+[5] Kyunghyun Cho, Bart van Merrienboer, Çağlar Gülçehre, Fethi Bougares, Holger Schwenk ve Yoshua Bengio. İstatistiksel makine çevirisi için RNN kodlayıcı-dekodlayıcı kullanarak ifade temsilleri öğrenme. CoRR, abs/1406.1078, 2014.  
+[6] Francois Chollet. Xception: Derin öğrenme ile derinlik ayrılabilir konvolüsyonlar. arXiv ön baskısı arXiv:1610.02357, 2016.  
+[7] Junyoung Chung, Çağlar Gülçehre, Kyunghyun Cho ve Yoshua Bengio. Dizi modelleme üzerinde kapılı tekrarlayan sinir ağlarının ampirik değerlendirmesi. CoRR, abs/1412.3555, 2014.  
+[8] Chris Dyer, Adhiguna Kuncoro, Miguel Ballesteros ve Noah A. Smith. Tekrarlayan sinir ağı dilbilgileri. NAACL Konferansı Bildirileri, 2016.  
+[9] Jonas Gehring, Michael Auli, David Grangier, Denis Yarats ve Yann N. Dauphin. Konvolüsyonel diziden diziye öğrenme. arXiv ön baskısı arXiv:1705.03122v2, 2017.  
+[10] Alex Graves. Tekrarlayan sinir ağları ile diziler oluşturma. arXiv ön baskısı arXiv:1308.0850, 2013.  
+[11] Kaiming He, Xiangyu Zhang, Shaoqing Ren ve Jian Sun. Görüntü tanıma için derin kalıntı öğrenme. IEEE Bilgisayar Görüşü ve Desen Tanıma Konferansı Bildirileri, sayfalar 770–778, 2016.  
+[12] Sepp Hochreiter, Yoshua Bengio, Paolo Frasconi ve Jürgen Schmidhuber. Tekrarlayan ağlarda gradyan akışı: uzun vadeli bağımlılıkları öğrenmenin zorluğu, 2001.  
+[13] Sepp Hochreiter ve Jürgen Schmidhuber. Uzun kısa vadeli bellek. Sinir Hesaplama, 9(8):1735–1780, 1997.  
+[14] Zhongqiang Huang ve Mary Harper. Diller arasında gizli anotasyonlarla kendinden eğitimli PCFG dilbilgileri. 2009 Doğal Dil İşleme Üzerine Ampirik Yöntemler Konferansı Bildirileri, sayfalar 832–841. ACL, Ağustos 2009.  
+[15] Rafal Jozefowicz, Oriol Vinyals, Mike Schuster, Noam Shazeer ve Yonghui Wu. Dil modellemenin sınırlarını keşfetmek. arXiv ön baskısı arXiv:1602.02410, 2016.  
+[16] Łukasz Kaiser ve Samy Bengio. Aktif bellek dikkat yerine geçebilir mi? Sinir Bilgisi İşleme Sistemleri'nde İlerlemeler, (NIPS), 2016.  
+[17] Łukasz Kaiser ve Ilya Sutskever. Sinir GPU'ları algoritmaları öğreniyor. Öğrenme Temsilleri Üzerine Uluslararası Konferans, 2016.  
+[18] Nal Kalchbrenner, Lasse Espeholt, Karen Simonyan, Aaron van den Oord, Alex Graves ve Koray Kavukcuoğlu. Doğal dil çevirisi için lineer zamanda sinir makinesi. arXiv ön baskısı arXiv:1610.10099v2, 2017.  
+[19] Yoon Kim, Carl Denton, Luong Hoang ve Alexander M. Rush. Yapılandırılmış dikkat ağları. Öğrenme Temsilleri Üzerine Uluslararası Konferans, 2017.  
+[20] Diederik Kingma ve Jimmy Ba. Adam: Stokastik optimizasyon için bir yöntem. ICLR, 2015.  
+[21] Oleksii Kuchaiev ve Boris Ginsburg. LSTM ağları için faktörizasyon hileleri. arXiv ön baskısı arXiv:1703.10722, 2017.  
+[22] Zhouhan Lin, Minwei Feng, Cicero Nogueira dos Santos, Mo Yu, Bing Xiang, Bowen Zhou ve Yoshua Bengio. Yapılandırılmış kendinden dikkatli cümle gömme. arXiv ön baskısı arXiv:1703.03130, 2017.  
+[23] Minh-Thang Luong, Quoc V. Le, Ilya Sutskever, Oriol Vinyals ve Lukasz Kaiser. Çoklu görev diziden diziye öğrenme. arXiv ön baskısı arXiv:1511.06114, 2015.  
+[24] Minh-Thang Luong, Hieu Pham ve Christopher D. Manning. Dikkat tabanlı sinir makine çevirisi için etkili yaklaşımlar. arXiv ön baskısı arXiv:1508.04025, 2015.
+
+Bu ruhla, 2009'dan bu yana birçok Amerikan hükümeti, kayıt veya oy verme sürecini daha zor hale getiren yeni yasalar çıkarmıştır. Yasa hiçbir zaman kusursuz olmayacak; ancak adil bir şekilde uygulanması gerekir - bu, benim görüşüme göre, eksik olan şeydir.
+
+Dikkat Görselleştirmeleri  
+Girdi-Girdi Katmanı 5  
+Bu ruhla, 2009'dan bu yana birçok Amerikan hükümeti, kayıt veya oy verme sürecini daha zor hale getiren yeni yasalar çıkarmıştır. <EOS> <pad> <pad> <pad> <pad> <pad> <pad> Bu ruhla, 2009'dan bu yana birçok Amerikan hükümeti, kayıt veya oy verme sürecini daha zor hale getiren yeni yasalar çıkarmıştır. <EOS> <pad> <pad> <pad> <pad> <pad> <pad> Şekil 3: Katman 5'teki kodlayıcı öz-dikkat mekanizmasının uzun mesafeli bağımlılıkları takip etmesine bir örnek. Birçok dikkat başlığı, 'zorlaştıran' fiilinin uzak bir bağımlılığına dikkat ediyor ve 'zorlaştıran...daha zor' ifadesini tamamlıyor. Burada sadece 'zorlaştıran' kelimesi için dikkatler gösterilmiştir. Farklı renkler farklı başlıkları temsil eder. Renkli olarak en iyi şekilde görüntülenir.
+
+Girdi-Girdi Katmanı 5  
+Yasa hiçbir zaman kusursuz olmayacak, ancak adil bir şekilde uygulanması gerekir - bu, benim görüşüme göre, eksik olan şeydir. <EOS> <pad> Yasa hiçbir zaman kusursuz olmayacak, ancak adil bir şekilde uygulanması gerekir - bu, benim görüşüme göre, eksik olan şeydir. <EOS> <pad> Şekil 4: Katman 5'teki iki dikkat başlığı, anafor çözümlemesine dahil gibi görünüyor. Üst: Başlık 5 için tam dikkatler. Alt: Sadece 'onun' kelimesi için başlık 5 ve 6'dan izole edilmiş dikkatler. Bu kelime için dikkatlerin çok keskin olduğunu unutmayın.
+
+Hukuk asla mükemmel olmayacak, ancak adil bir şekilde uygulanması gerekiyor - bence eksik olan şey bu.

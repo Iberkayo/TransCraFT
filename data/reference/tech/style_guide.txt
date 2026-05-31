@@ -1,0 +1,18 @@
+# TEKNİK VE AKADEMİK ÇEVİRİ STİL KILAVUZU
+
+Bu kılavuz, teknoloji, yapay zeka ve akademik makalelerin çevirilerinde TransCraft sistemindeki tüm ajanlar tarafından referans alınacaktır.
+
+## 1. Ton ve Netlik (Clarity & Objectivity)
+*   **Nesnel Dil:** Çeviri tamamen nesnel, akademik ve resmi bir tonda olmalıdır. Sanatsal veya edebi süslemelerden kaçınılmalıdır.
+*   **Net Cümleler:** Karmaşık İngilizce cümleler, anlamı bozmadan daha anlaşılır ve net Türkçe yapılara dönüştürülmelidir. Teknik ifadelerin netliği her şeyden önce gelir.
+
+## 2. Teknik Terimlerin Korunması
+*   **Yerleşik Karşılıklar:** Sektörde ve akademide yerleşmiş Türkçe karşılıklar (örn: "overfitting" -> "aşırı uyum", "weights" -> "ağırlıklar") kullanılmalıdır.
+*   **Orijinal Terimin Belirtilmesi:** Çok yeni veya Türkçede karşılığı bulunmayan terimler ilk geçtikleri yerde Türkçe önerinin yanında parantez içinde orijinali ile verilmelidir (örn: "artık bağlantı (residual connection)").
+
+## 3. Matematiksel İfadeler ve Formüller
+*   Formüller, matris adları (Q, K, V vb.), değişkenler ve matematiksel semboller kesinlikle orijinal halleriyle korunmalı, biçimlendirmeleri değiştirilmemelidir.
+
+## 4. İmla ve Akademik Jargon
+*   Makalelerde sıkça geçen yazar atıfları (örn: "[9]") veya kaynak referansları aynen korunmalıdır.
+*   "We propose" gibi ifadeler "Biz öneriyoruz" veya edebi akışa göre "Bu çalışmada ... önerilmektedir" şeklinde çevrilebilir.

@@ -1,0 +1,21 @@
+# EDEBİ VE KÜLTÜREL ÇEVİRİ STİL KILAVUZU (İNGİLİZCE -> TÜRKÇE)
+
+Bu kılavuz, TransCraft sistemindeki tüm çeviri ve stilist ajanları tarafından hedef metnin edebi kalitesini artırmak için bir referans olarak kullanılacaktır.
+
+## 1. Cümle Yapısı ve Akıcılık (Flow)
+*   **Birebir Yapıdan Kaçınma:** İngilizce cümle yapıları (özellikle yan cümlecikler) Türkçeye doğrudan aktarıldığında robotik durur. Cümleler gerektiğinde bölünmeli veya Türkçe anlatım ritmine uygun olarak birleştirilmelidir.
+*   **Etken vs. Edilgen Çatı:** İngilizce edebi metinlerde edilgen çatı (passive voice - "was seen", "was done") sıkça kullanılır. Türkçe edebi anlatımda ise etken çatı (active voice) okuma akışını hızlandırır. Mümkün olduğunca etken anlatım tercih edilmelidir.
+*   **Devrik Cümle Kullanımı:** Edebi tona göre, özellikle duygusal veya lirik metinlerde, ölçülü miktarda devrik cümle kullanılabilir. Ancak bu durum okuyucuyu yormayacak şekilde dengelenmelidir.
+
+## 2. Kültürel ve Deyimsel Adaptasyon (Localization)
+*   **Deyim Eşleştirme:** Kaynak metindeki deyimlerin birebir çevrilmesi (örn: "bite the bullet" -> "kurşunu ısırmak") kesinlikle yasaktır. Bunun yerine hedef dildeki anlamdaş deyimler (örn: "dişini sıkmak", "acı reçeteyi kabul etmek") kullanılmalıdır.
+*   **Kültürel Referanslar:** Hedef dilde karşılığı olmayan kültürel ögeler (yiyecekler, yerel oyunlar, ölçü birimleri) bağlama göre açıklanarak çevrilmeli veya edebi akışı bozmayacak yerel alternatiflerle adapte edilmelidir.
+
+## 3. Ton ve Karakter Diyalogları
+*   **Dönem Uyumu:** Tarihsel veya klasik metinlerde (örn: 19. yüzyıl edebiyatı), hedef dilin o döneme uygun kelime haznesi ve hitap biçimleri kullanılmalıdır. Modern sokak ağzı klasik metinlerde kullanılmamalıdır.
+*   **Karakter Sesleri:** Diyaloglarda karakterin yaşı, sosyal statüsü, eğitim seviyesi ve o anki ruh hali çeviri tonuna yansıtılmalıdır.
+
+## 4. Yasaklı Robotik Kelimeler ve Kalıplar
+*   "Sahip olmak" kelimesinin gereksiz kullanımı (örn: "I have a book" -> "Bir kitaba sahibim" yerine "Bir kitabım var").
+*   "Tarafından" kelimesinin aşırı kullanımı (edilgen cümle kalıntısı).
+*   İngilizce zaman bağlaçlarının doğrudan çevrilmesi (örn: "when" -> "...dığında" yerine akıcılığa göre "...ınca", "...iken" veya bağımsız cümleler tercih edilmelidir).

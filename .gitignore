@@ -1,0 +1,23 @@
+# API Keys and Environment Secrets
+.env
+.env.local
+
+# Python Caches and Virtual Environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+ENV/
+
+# Output Checkpoints and Recovery Files
+data/outputs/recovery_*
+data/outputs/progress_*
+.transcraft_state.json
+
+# IDE Configuration
+.vscode/
+.idea/
+.gemini/
