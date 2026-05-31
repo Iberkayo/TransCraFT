@@ -1,0 +1,108 @@
+# TransCraft 🔮
+
+**TransCraft** is a production-grade, autonomous **Multi-Agent Translation & Localization Engine** designed to produce high-fidelity, publishing-quality translations of complex literary and technical documents (PDFs & TXTs). 
+
+Rather than executing dry, word-by-word machine translations, TransCraft orchestrates a collaborative graph of specialized AI agents that analyze, translate, stylize, audit, and polish content dynamically.
+
+---
+
+## 🚀 Key Features
+
+*   **Multi-Agent Collaborative Graph:** Powered by **LangGraph**, it coordinates 5 specialized agents in a self-correcting feedback loop (Critic-Stylist revision cycles).
+*   **Smart Semantic Chunking:** Splits large PDF and TXT documents into optimal chunks without breaking paragraphs or sentences.
+*   **Stateful Translation Memory:** Preserves narrative continuity across pages using running context summaries and a dynamic glossary.
+*   **Domain & Genre Routing:** Automatically loads specific dictionaries and style guides depending on the genre (`tech` vs. `literary`).
+*   **Resumable Progress Checkpoints:** Saves translation state to a recovery file after every chunk, preventing token loss in case of interruptions.
+*   **AI-as-a-Judge Evaluation:** Runs an autonomous quality audit evaluating the output on *Accuracy*, *Fluency*, and *Grammar* (1-5 scale).
+*   **Dual Interfaces:** Includes a rich terminal command-line tool (CLI) and an interactive **Streamlit Web UI**.
+*   **FastAPI Microservice Mode:** Can be spun up as an API server for backend integrations.
+
+---
+
+## 🤖 The Multi-Agent Architecture
+
+```
+                      [Input Document]
+                             │
+                             ▼
+              [ 1. Style & Culture Analyst ]
+                             │
+                             ▼
+               [ 2. First-Pass Translator ]
+                             │
+                             ▼
+                 [ 3. Cultural Stylist ] ◄─────┐
+                             │                 │ (If rejected,
+                             ▼                 │  loops back)
+                  [ 4. Translation Critic ] ───┘
+                             │
+                             ▼ (If approved)
+                  [ 5. Final Copy-Editor ]
+                             │
+                             ▼
+                      [Polished Output]
+```
+
+*   **Style & Culture Analyst:** Profiles the text's tone, registers idioms, and maps vocabulary.
+*   **First-Pass Translator:** Conducts literal and semantic translation preserving facts and terminology.
+*   **Cultural Stylist:** Rewrites the draft to sound completely natural in the target language.
+*   **Translation Critic:** Performs comparative analysis, audits terminology, and requests revisions if criteria aren't met.
+*   **Final Polisher:** Inspects grammar, punctuation, and format encoding.
+
+---
+
+## ⚙️ Setup & Configuration
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/Iberkayo/TransCraFT.git
+    cd TransCraFT
+    ```
+2.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+3.  **Configure Environment Variables:**
+    Copy the env template and enter your OpenAI API key:
+    ```bash
+    cp .env.example .env
+    # Edit the .env file with your OPENAI_API_KEY
+    ```
+
+---
+
+## 💻 How to Run
+
+### 1. Interactive Web Playground (Streamlit)
+To launch the visual browser interface (allows file uploads, real-time agent trace logs, and dynamic translation progress):
+```bash
+streamlit run app.py
+```
+
+### 2. Command Line Interface (CLI)
+Translate files directly in the terminal with colored logs:
+*   **Literary/General texts:**
+    ```bash
+    python main.py --input data/inputs/literary_english.txt --genre literary
+    ```
+*   **Technical/AI Research papers:**
+    ```bash
+    python main.py --input data/inputs/1706.03762v7.pdf --genre tech --chunk-size 5000
+    ```
+
+### 3. FastAPI Microservice
+Run TransCraft as a background translation server:
+```bash
+python main.py --server --port 8000
+```
+*   **Translation Endpoint:** `POST http://127.0.0.1:8000/translate` (form-data: `file`, `genre`, `source_lang`, `target_lang`)
+*   **Health Status:** `GET http://127.0.0.1:8000/status`
+
+---
+
+## 🧪 Unit Testing
+
+To run the Pytest verification suite:
+```bash
+python -m pytest tests/
+```
