@@ -100,6 +100,44 @@ python main.py --server --port 8000
 
 ---
 
+## 🔍 Observability & Experiment Tracking
+
+TransCraft integrates **Langfuse** and **MLflow** to provide production-grade monitoring for its multi-agent system. 
+
+### Why this matters in production GenAI systems
+In enterprise GenAI applications, especially multi-agent architectures, silent failures (like hallucinations, repetitive loops, or prompt drift) are common. 
+- **Langfuse** gives us x-ray vision into the *execution state* of every LangGraph node (e.g., exactly what the Critic agent said to the Stylist agent, how many tokens were used, and step-by-step latency). 
+- **MLflow** allows us to quantitatively measure *translation quality* over time across different experiments (e.g., testing `gpt-4o-mini` vs `gpt-4o` prompts to see which yields higher AI-as-a-Judge scores).
+
+### 🛠️ What is Tracked?
+*   **Langfuse (Tracing):** Agent executions, chunk indices, revision loops, raw inputs/outputs per agent, exact LLM prompts, token usage, and latency.
+*   **MLflow (Experimentation):** Hyperparameters (chunk size, model, genre), metrics (AI-as-a-Judge Accuracy, Fluency, Grammar scores, total latency), and generated artifact files.
+
+### 🔌 How to Enable/Disable
+Both tools are completely optional and fail safely if unavailable. Enable them in your `.env`:
+```env
+ENABLE_LANGFUSE=true
+LANGFUSE_PUBLIC_KEY=...
+LANGFUSE_SECRET_KEY=...
+LANGFUSE_HOST=https://cloud.langfuse.com
+
+ENABLE_MLFLOW=true
+MLFLOW_TRACKING_URI=./mlruns
+MLFLOW_EXPERIMENT_NAME=transcraft_translation_quality
+```
+
+### 🧪 Run an Evaluation Experiment
+You can automatically evaluate and compare different prompt versions or models using the evaluation script:
+```bash
+python scripts/run_eval.py
+```
+After running translations or evaluations, open the MLflow UI to view the dashboards:
+```bash
+mlflow ui
+```
+
+---
+
 ## 🧪 Unit Testing
 
 To run the Pytest verification suite:

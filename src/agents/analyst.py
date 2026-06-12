@@ -1,9 +1,14 @@
 from langchain_openai import ChatOpenAI
 from src.core.config import Config
 from src.core.state import TranslationState
+from src.observability.langfuse_tracker import tracker
 
 def analyze_style_and_culture(state: TranslationState) -> dict:
     """Analyze the style, tone, and cultural nuances of the source text."""
+    trace_id = state.get("trace_id")
+    chunk_index = state.get("chunk_index")
+    span = tracker.create_span(trace_id, name="analyst_node", metadata={"chunk_index": chunk_index})
+
     llm = ChatOpenAI(
         api_key=Config.OPENAI_API_KEY,
         model=Config.MINI_MODEL,
@@ -50,9 +55,17 @@ Analyze the source text carefully and output a report covering:
 Provide a clear and concise report in Turkish.
 """
     
-    response = llm.invoke(prompt)
+    callbacks = []
+    if trace_id:
+        handler = tracker.get_callback_handler(trace_id)
+        if handler:
+            callbacks.append(handler)
+            
+    response = llm.invoke(prompt, config={"callbacks": callbacks})
     report = response.content
     
+    tracker.end_span(span, output_data=report)
+
     # Create log trace
     log_entry = {
         "agent": "Style & Culture Analyst",

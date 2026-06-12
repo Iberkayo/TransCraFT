@@ -9,6 +9,9 @@ from src.core.config import Config
 from src.core.graph import create_translation_graph
 from src.core.document_processor import DocumentProcessor
 from src.core.evaluator import TranslationEvaluator
+from src.observability.langfuse_tracker import tracker
+from src.observability.mlflow_tracker import mlflow_tracker
+import time
 
 # Set page configuration
 st.set_page_config(
@@ -149,6 +152,20 @@ if uploaded_file is not None:
         graph = create_translation_graph()
         summary_llm = ChatOpenAI(api_key=Config.OPENAI_API_KEY, model=Config.MINI_MODEL, temperature=0)
 
+        # Initialize Langfuse Trace for this file
+        run_name = f"translation_{Path(uploaded_file.name).stem}"
+        trace_id = tracker.create_trace(
+            name=run_name,
+            metadata={
+                "input_filename": uploaded_file.name,
+                "genre": genre,
+                "source_lang": source_lang,
+                "target_lang": target_lang,
+                "chunk_size": chunk_size
+            }
+        )
+        start_time = time.time()
+
         # Process each chunk
         for i, chunk_text in enumerate(chunks):
             progress_bar.progress((i) / len(chunks))
@@ -172,7 +189,9 @@ if uploaded_file is not None:
                 "final_translation": None,
                 "logs": [],
                 "previous_chunk_context": previous_chunk_context,
-                "dynamic_glossary": dynamic_glossary
+                "dynamic_glossary": dynamic_glossary,
+                "trace_id": trace_id,
+                "chunk_index": i
             }
 
             current_log_index = 0
@@ -257,6 +276,28 @@ if uploaded_file is not None:
                     st.metric(label="✏️ İmla & Terim Tutarlılığı", value=f"{evaluation['grammar']} / 5")
                 
                 st.markdown(f"### Detaylı Rapor\n{evaluation['summary']}")
+                
+                # Log Experiment to MLflow
+                end_time = time.time()
+                mlflow_tracker.log_translation_experiment(
+                    run_name=run_name,
+                    params={
+                        "model": Config.MAIN_MODEL,
+                        "genre": genre,
+                        "source_lang": source_lang,
+                        "target_lang": target_lang,
+                        "chunk_size": chunk_size,
+                        "num_chunks": len(chunks)
+                    },
+                    metrics={
+                        "accuracy": float(evaluation['accuracy']),
+                        "fluency": float(evaluation['fluency']),
+                        "grammar": float(evaluation['grammar']),
+                        "total_latency_seconds": end_time - start_time
+                    }
+                )
+                tracker.flush()
+
             except Exception as e:
                 st.warning(f"Kalite değerlendirmesi yapılamadı: {e}")
 

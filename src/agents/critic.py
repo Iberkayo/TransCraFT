@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from src.core.config import Config
 from src.core.state import TranslationState
+from src.observability.langfuse_tracker import tracker
 
 class EvaluationSchema(BaseModel):
     is_approved: bool = Field(
@@ -13,6 +14,10 @@ class EvaluationSchema(BaseModel):
 
 def evaluate_translation(state: TranslationState) -> dict:
     """Compare source text and stylized translation to evaluate accuracy and flow."""
+    trace_id = state.get("trace_id")
+    chunk_index = state.get("chunk_index")
+    span = tracker.create_span(trace_id, name="critic_node", metadata={"chunk_index": chunk_index, "revision_count": state.get("revision_count", 0)})
+
     llm = ChatOpenAI(
         api_key=Config.OPENAI_API_KEY,
         model=Config.MAIN_MODEL,  # Use main model for critical evaluation
@@ -46,7 +51,14 @@ You are an expert bilingual critic and translation quality auditor. Your task is
 """
 
     structured_llm = llm.with_structured_output(EvaluationSchema)
-    result = structured_llm.invoke(prompt)
+    
+    callbacks = []
+    if trace_id:
+        handler = tracker.get_callback_handler(trace_id)
+        if handler:
+            callbacks.append(handler)
+
+    result = structured_llm.invoke(prompt, config={"callbacks": callbacks})
     
     # Check if we hit the revision limit - if so, override approval to true to avoid loop
     is_approved = result.is_approved
@@ -56,6 +68,8 @@ You are an expert bilingual critic and translation quality auditor. Your task is
         is_approved = True
         critique = f"Max revisions reached. Overriding approval. Original critique was: {critique}"
         
+    tracker.end_span(span, output_data={"is_approved": is_approved, "critique": critique})
+
     # Create log trace
     log_entry = {
         "agent": "Translation Critic",

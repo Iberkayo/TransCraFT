@@ -14,6 +14,17 @@ class Config:
     # API Keys
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     
+    # Observability (Langfuse)
+    ENABLE_LANGFUSE = os.getenv("ENABLE_LANGFUSE", "false").lower() == "true"
+    LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
+    LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
+    LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+
+    # Experiment Tracking (MLflow)
+    ENABLE_MLFLOW = os.getenv("ENABLE_MLFLOW", "false").lower() == "true"
+    MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "./mlruns")
+    MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "transcraft_translation_quality")
+    
     # Models
     MINI_MODEL = os.getenv("DEFAULT_MINI_MODEL", "gpt-4o-mini")
     MAIN_MODEL = os.getenv("DEFAULT_MAIN_MODEL", "gpt-4o")

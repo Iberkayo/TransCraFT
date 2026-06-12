@@ -1,9 +1,14 @@
 from langchain_openai import ChatOpenAI
 from src.core.config import Config
 from src.core.state import TranslationState
+from src.observability.langfuse_tracker import tracker
 
 def translate_draft(state: TranslationState) -> dict:
     """Perform a high-fidelity literal and semantic draft translation."""
+    trace_id = state.get("trace_id")
+    chunk_index = state.get("chunk_index")
+    span = tracker.create_span(trace_id, name="translator_node", metadata={"chunk_index": chunk_index})
+
     llm = ChatOpenAI(
         api_key=Config.OPENAI_API_KEY,
         model=Config.MINI_MODEL,
@@ -31,9 +36,17 @@ You are a high-fidelity semantic translator. Your goal is to translate the sourc
 Provide only the translated text, with no preamble or explanations.
 """
     
-    response = llm.invoke(prompt)
+    callbacks = []
+    if trace_id:
+        handler = tracker.get_callback_handler(trace_id)
+        if handler:
+            callbacks.append(handler)
+            
+    response = llm.invoke(prompt, config={"callbacks": callbacks})
     raw_translation = response.content.strip()
     
+    tracker.end_span(span, output_data=raw_translation)
+
     # Create log trace
     log_entry = {
         "agent": "Draft Translator",

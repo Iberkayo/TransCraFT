@@ -1,9 +1,14 @@
 from langchain_openai import ChatOpenAI
 from src.core.config import Config
 from src.core.state import TranslationState
+from src.observability.langfuse_tracker import tracker
 
 def polish_translation(state: TranslationState) -> dict:
     """Perform a final proofreading and editorial polish on the stylized translation."""
+    trace_id = state.get("trace_id")
+    chunk_index = state.get("chunk_index")
+    span = tracker.create_span(trace_id, name="polisher_node", metadata={"chunk_index": chunk_index})
+
     llm = ChatOpenAI(
         api_key=Config.OPENAI_API_KEY,
         model=Config.MINI_MODEL,
@@ -26,9 +31,17 @@ You are a professional copyeditor and proofreader. Your task is to perform a fin
 Provide only the polished, final translated text. Do not include any notes, explanations, or introduction.
 """
 
-    response = llm.invoke(prompt)
+    callbacks = []
+    if trace_id:
+        handler = tracker.get_callback_handler(trace_id)
+        if handler:
+            callbacks.append(handler)
+
+    response = llm.invoke(prompt, config={"callbacks": callbacks})
     final_translation = response.content.strip()
     
+    tracker.end_span(span, output_data=final_translation)
+
     # Create log trace
     log_entry = {
         "agent": "Final Polisher",

@@ -30,3 +30,7 @@ class TranslationState(TypedDict):
     # Stateful / Chunked Translation memory
     previous_chunk_context: Optional[str]
     dynamic_glossary: List[Dict[str, str]]
+
+    # Observability
+    trace_id: Optional[str]
+    chunk_index: Optional[int]

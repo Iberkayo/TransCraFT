@@ -20,6 +20,9 @@ from src.core.config import Config
 from src.core.graph import create_translation_graph
 from src.core.document_processor import DocumentProcessor
 from src.core.evaluator import TranslationEvaluator
+from src.observability.langfuse_tracker import tracker
+from src.observability.mlflow_tracker import mlflow_tracker
+import time
 
 # Initialize Rich console with custom theme
 custom_theme = Theme({
@@ -148,6 +151,20 @@ def main():
     graph = create_translation_graph()
     summary_llm = ChatOpenAI(api_key=Config.OPENAI_API_KEY, model=Config.MINI_MODEL, temperature=0)
 
+    # Initialize Langfuse Trace for this file
+    run_name = f"translation_{input_path.stem}"
+    trace_id = tracker.create_trace(
+        name=run_name,
+        metadata={
+            "input_filename": input_path.name,
+            "genre": args.genre,
+            "source_lang": args.source_lang,
+            "target_lang": args.target_lang,
+            "chunk_size": args.chunk_size
+        }
+    )
+    start_time = time.time()
+
     # 5. Process each chunk
     for i in range(start_chunk_index, len(chunks)):
         chunk_text = chunks[i]
@@ -169,7 +186,9 @@ def main():
             "final_translation": None,
             "logs": [],
             "previous_chunk_context": previous_chunk_context,
-            "dynamic_glossary": dynamic_glossary
+            "dynamic_glossary": dynamic_glossary,
+            "trace_id": trace_id,
+            "chunk_index": i
         }
 
         current_log_index = 0
@@ -291,6 +310,29 @@ def main():
                 padding=(1, 2)
             ))
             console.print("\n")
+
+            # 8. Log Experiment to MLflow
+            end_time = time.time()
+            mlflow_tracker.log_translation_experiment(
+                run_name=run_name,
+                params={
+                    "model": Config.MAIN_MODEL,
+                    "genre": args.genre,
+                    "source_lang": args.source_lang,
+                    "target_lang": args.target_lang,
+                    "chunk_size": args.chunk_size,
+                    "num_chunks": len(chunks)
+                },
+                metrics={
+                    "accuracy": float(evaluation['accuracy']),
+                    "fluency": float(evaluation['fluency']),
+                    "grammar": float(evaluation['grammar']),
+                    "total_latency_seconds": end_time - start_time
+                },
+                artifacts={"output_file": str(output_file.absolute())}
+            )
+            tracker.flush()
+
         except Exception as e:
             console.print(f"[warning]AI Quality Evaluation failed: {e}[/warning]\n")
     except Exception as e:

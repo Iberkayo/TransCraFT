@@ -1,0 +1,16 @@
+[
+    {
+        "id": "literary_test_1",
+        "genre": "literary",
+        "source": "The old clock ticked heavily in the dusty corner, a constant reminder of the time slipping through his fingers like sand.",
+        "translation_v1": "Eski saat tozlu köşede ağır ağır tik taklıyordu, zamanın kum gibi parmaklarının arasından kayıp gittiğinin sürekli bir hatırlatıcısıydı.",
+        "translation_v2": "Tozlu köşedeki eski saat ağır ağır işliyor, zamanın parmaklarının arasından kum gibi akıp gittiğini ona durmaksızın hatırlatıyordu."
+    },
+    {
+        "id": "tech_test_1",
+        "genre": "tech",
+        "source": "The neural network was trained using stochastic gradient descent with momentum to minimize the cross-entropy loss over 100 epochs.",
+        "translation_v1": "Sinir ağı, 100 epok üzerinde çapraz entropi kaybını en aza indirmek için momentum ile stokastik gradyan inişi kullanılarak eğitildi.",
+        "translation_v2": "Yapay sinir ağı, 100 epok boyunca çapraz entropi kaybını (cross-entropy loss) minimize etmek amacıyla momentuma dayalı stokastik gradyan iniş (stochastic gradient descent) algoritmasıyla eğitilmiştir."
+    }
+]

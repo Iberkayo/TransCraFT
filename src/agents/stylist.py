@@ -1,9 +1,14 @@
 from langchain_openai import ChatOpenAI
 from src.core.config import Config
 from src.core.state import TranslationState
+from src.observability.langfuse_tracker import tracker
 
 def stylize_translation(state: TranslationState) -> dict:
     """Refine the raw translation to be culturally fluent, natural, and literary."""
+    trace_id = state.get("trace_id")
+    chunk_index = state.get("chunk_index")
+    span = tracker.create_span(trace_id, name="stylist_node", metadata={"chunk_index": chunk_index, "revision_count": state.get("revision_count", 0)})
+
     llm = ChatOpenAI(
         api_key=Config.OPENAI_API_KEY,
         model=Config.MAIN_MODEL,  # Use main model (gpt-4o) for high-quality writing
@@ -57,9 +62,17 @@ Please rewrite the translation carefully, incorporating the Critic's feedback po
 Provide only the refined, beautiful translation in the target language, with no conversational preamble or notes.
 """
 
-    response = llm.invoke(prompt)
+    callbacks = []
+    if trace_id:
+        handler = tracker.get_callback_handler(trace_id)
+        if handler:
+            callbacks.append(handler)
+
+    response = llm.invoke(prompt, config={"callbacks": callbacks})
     stylized_translation = response.content.strip()
     
+    tracker.end_span(span, output_data=stylized_translation)
+
     # Create log trace
     log_entry = {
         "agent": "Cultural Stylist",
