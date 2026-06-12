@@ -1,0 +1,19 @@
+Transformer mimarisi, modern yapay zeka sistemlerinde baskın yaklaşım hâline gelmiştir.
+
+Müşteri Hizmetleri platformumuzda Transformer modeli, kullanıcı taleplerini anlayıp ilgili departmana yönlendirmekle görevlidir.
+
+Müşteri Hizmetleri ekibi, üst seviyeye taşınan tüm vakaları manuel olarak inceler.
+
+Dikkat Mekanizması, Transformer'ın girdi metninin ilgili kısımlarına odaklanmasını sağlar.
+
+Birkaç mühendis, Dikkat Mekanizması terimini dahili belgelerde farklı şekillerde çevirerek tutarsızlığa yol açmıştır. Kimi belgelerde "Attention Mechanism" olarak bırakılırken, kimilerinde "Focus Mechanism" şeklinde kullanılmıştır.
+
+Bu tutarsızlık, Müşteri Hizmetleri temsilcileri arasında kafa karışıklığına neden olmuştur.
+
+Bu nedenle, gelecekteki tüm dokümantasyonda aynı terminolojinin tutarlı bir şekilde kullanılması zorunludur.
+
+Transformer mimarisi, Dikkat Mekanizması ve Müşteri Hizmetleri platformu her zaman aynı terimlerle, tutarlı bir biçimde çevrilmelidir.
+
+Çeyrek dönemin sonunda, Müşteri Hizmetleri departmanı tüm belgelerde terminolojiyi standart hâle getirdikten sonra üretkenlikte %15'lik bir artış bildirmiştir.
+
+Müşteri Hizmetleri şu anda teknik destek taleplerini yönetmek için Transformer tabanlı yeni bir iş akışı hazırlamaktadır.

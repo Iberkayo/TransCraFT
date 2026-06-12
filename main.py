@@ -62,6 +62,7 @@ def main():
     parser.add_argument("--target-lang", "-t", type=str, default="Turkish", help="Target language")
     parser.add_argument("--chunk-size", "-c", type=int, default=3000, help="Max characters per chunk")
     parser.add_argument("--genre", "-g", type=str, choices=["literary", "tech"], default="literary", help="Genre of the text (literary, tech)")
+    parser.add_argument("--style", "-st", type=str, choices=["modern_turkish", "classic_literary", "childrens_book", "academic_technical", "publisher_editor"], default="modern_turkish", help="Style preset to apply")
     parser.add_argument("--server", action="store_true", help="Start the FastAPI translation microservice server")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address for the server")
     parser.add_argument("--port", type=int, default=8000, help="Port for the server")
@@ -99,11 +100,28 @@ def main():
     if not args.input:
         parser.error("the following arguments are required: --input/-i (unless running with --server)")
 
-    # 2. Loading inputs & references
     input_path = Path(args.input)
     if not input_path.exists():
-        console.print(f"[danger]Input file not found:[/danger] {args.input}")
+        console.print(f"[danger]Error:[/danger] Input file not found at '{input_path}'")
         sys.exit(1)
+
+    # 2. Setup Resources
+    console.print("[info]Loading resources and initializing language models...[/info]")
+    
+    _, glossary_path = Config.get_genre_paths(args.genre)
+    style_guide_path = Config.get_style_path(args.style)
+    
+    style_guide = load_text_file(style_guide_path)
+    glossary = load_json_file(glossary_path, default=[])
+    idioms = load_json_file(Config.IDIOMS_PATH, default=[])
+    
+    # Load Negative Glossary
+    negative_glossary_path = Config.REFERENCE_DIR / "yanlis_ceviriler.json"
+    negative_glossary = load_json_file(negative_glossary_path, default={})
+
+    # Load Positive Glossary
+    positive_glossary_path = Config.REFERENCE_DIR / "positive_glossary.json"
+    positive_glossary = load_json_file(positive_glossary_path, default={})
         
     console.print(f"[info]Loading and chunking document: {input_path}...[/info]")
     
@@ -294,6 +312,37 @@ def main():
         if recovery_file.exists():
             recovery_file.unlink()
             
+        # 6.5 Consistency Checker Post-Process
+        console.print("[bold yellow]Running Enterprise Consistency Checker...[/bold yellow]\n")
+        from src.agents.consistency_checker import run_consistency_check
+        consistency_report = run_consistency_check(full_text, full_translation, positive_glossary)
+        
+        if consistency_report.get("issues_found", 0) > 0:
+            console.print(f"[warning]Found {consistency_report['issues_found']} potential inconsistencies.[/warning]")
+            for issue in consistency_report.get("issues", []):
+                console.print(f"  - [dim]{issue['type']}:[/dim] {issue['description']}")
+                
+        if consistency_report.get("glossary_candidates"):
+            console.print(f"[info]Extracted {len(consistency_report['glossary_candidates'])} terminology recommendations.[/info]")
+            # Save candidates
+            runtime_dir = Config.DATA_DIR / "runtime"
+            runtime_dir.mkdir(parents=True, exist_ok=True)
+            candidate_path = runtime_dir / "auto_glossary_candidate.json"
+            try:
+                if candidate_path.exists():
+                    with open(candidate_path, "r", encoding="utf-8") as f:
+                        disk_candidates = json.load(f)
+                else:
+                    disk_candidates = {}
+                    
+                for rec in consistency_report["glossary_candidates"]:
+                    disk_candidates[rec["source_term"]] = rec["target_term"]
+                    
+                with open(candidate_path, "w", encoding="utf-8") as f:
+                    json.dump(disk_candidates, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                pass
+            
         # 7. Run AI Quality Evaluation
         console.print("[bold yellow]Running AI-as-a-Judge Quality Evaluation...[/bold yellow]\n")
         try:
@@ -306,10 +355,11 @@ def main():
             # Print evaluation report beautifully
             scores_str = f"⭐ [success]Doğruluk (Accuracy):[/success] {evaluation['accuracy']}/5 | " \
                          f"⭐ [success]Akıcılık (Fluency):[/success] {evaluation['fluency']}/5 | " \
-                         f"⭐ [success]İmla & Terim (Grammar):[/success] {evaluation['grammar']}/5"
+                         f"⭐ [success]İmla (Grammar):[/success] {evaluation['grammar']}/5 | " \
+                         f"⭐ [success]Tutarlılık (Consistency):[/success] {evaluation['consistency']}/5"
                          
             console.print(Panel(
-                f"{scores_str}\n\n{evaluation['summary']}",
+                f"{scores_str}\n\n[bold white]Overall Quality Score:[/bold white] {evaluation['overall_score']:.1f}/5.0\n\n{evaluation['summary']}",
                 title="[accent]📊 OTONOM KALİTE DEĞERLENDİRME RAPORU (AI Evaluation) 📊[/accent]",
                 border_style="accent",
                 padding=(1, 2)
@@ -322,6 +372,7 @@ def main():
                 run_name=run_name,
                 params={
                     "model": Config.MAIN_MODEL,
+                    "style": args.style,
                     "genre": args.genre,
                     "source_lang": args.source_lang,
                     "target_lang": args.target_lang,

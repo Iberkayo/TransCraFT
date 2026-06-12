@@ -20,17 +20,43 @@ def translate_draft(state: TranslationState) -> dict:
     source_lang = state["source_language"]
     target_lang = state["target_language"]
     glossary = state["glossary"]
+    positive_glossary = state.get("positive_glossary", {})
+    auto_candidates = state.get("auto_glossary_candidates", {})
+    negative_glossary = state.get("negative_glossary", {})
     
+    # Format glossaries
+    pos_glossary_text = ""
+    if positive_glossary:
+        pos_glossary_text = "\n### Positive Glossary (HIGHEST PRIORITY - MUST USE):\n"
+        for k, v in positive_glossary.items():
+            pos_glossary_text += f"- Translate '{k}' exactly as: '{v}'\n"
+
+    auto_glossary_text = ""
+    if auto_candidates:
+        auto_glossary_text = "\n### Auto-Extracted Terminology Candidates (Use if appropriate):\n"
+        for k, v in auto_candidates.items():
+            auto_glossary_text += f"- '{k}': '{v}'\n"
+
+    neg_glossary_text = ""
+    if negative_glossary:
+        neg_glossary_text = "\n### Negative Glossary (DO NOT USE):\n"
+        for k, v in negative_glossary.items():
+            neg_glossary_text += f"- DO NOT translate '{k}' as its standard meaning. Instead use: '{v}'\n"
+
     prompt = f"""
 You are a high-fidelity semantic translator. Your goal is to translate the source text from {source_lang} to {target_lang} with maximum accuracy, ensuring no meaning, detail, or nuances are lost.
 
 ### Rules:
 1. Translate accurately. Do not try to make it highly poetic or loose yet; focus on accuracy.
-2. Adhere strictly to the Glossary below. If a term is in the glossary, you MUST use the specified translation.
+2. Adhere strictly to the Positive Glossary. It has the HIGHEST priority.
+3. Adhere to the standard Glossary and Auto-Extracted Terminology.
+4. Obey the Negative Glossary. DO NOT use prohibited words.
 
-### Glossary:
+### Standard Glossary:
 {glossary}
-
+{pos_glossary_text}
+{auto_glossary_text}
+{neg_glossary_text}
 ### Source Text:
 {source_text}
 

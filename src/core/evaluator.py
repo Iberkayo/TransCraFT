@@ -10,11 +10,18 @@ class EvaluationReportSchema(BaseModel):
         description="Score from 1 (poor) to 5 (excellent) evaluating if the translation reads naturally like it was written by a native."
     )
     grammar_score: int = Field(
-        description="Score from 1 (poor) to 5 (excellent) evaluating spelling, punctuation, grammar, and terminology consistency."
+        description="Score from 1 (poor) to 5 (excellent) evaluating spelling, punctuation, and grammar."
+    )
+    consistency_score: int = Field(
+        description="Score from 1 (poor) to 5 (excellent) evaluating terminology consistency and stylistic coherence."
     )
     evaluation_summary: str = Field(
         description="A detailed 2-3 paragraph constructive review in Turkish detailing the strengths, weaknesses, and concrete recommendations for future translation runs."
     )
+
+    @property
+    def overall_score(self) -> float:
+        return (self.accuracy_score + self.fluency_score + self.grammar_score + self.consistency_score) / 4.0
 
 class TranslationEvaluator:
     @classmethod
@@ -41,7 +48,8 @@ You are a highly demanding bilingual quality control expert. Evaluate the transl
 ### Evaluation Criteria:
 1. **Accuracy (Doğruluk):** Score 1-5. Did the translation omit details, add unauthorized content, or shift the meaning?
 2. **Fluency (Akıcılık):** Score 1-5. Does the text flow beautifully in the target language (Turkish), or does it sound like a translated/clunky text?
-3. **Grammar & Terminology (İmla ve Terim Tutarlılığı):** Score 1-5. Are there grammar errors, spelling mistakes, punctuation issues, or inconsistent technical terms?
+3. **Grammar (İmla):** Score 1-5. Are there grammar errors, spelling mistakes, or punctuation issues?
+4. **Consistency (Tutarlılık):** Score 1-5. Are the terminology, character names, and stylistic tone consistent throughout?
 
 Provide a fair but strict score and compile a detailed review in Turkish containing:
 - Strengths (Çevirinin Güçlü Yanları)
@@ -49,12 +57,14 @@ Provide a fair but strict score and compile a detailed review in Turkish contain
 - Concrete Recommendations (Öneriler)
 """
 
-        structured_llm = llm.with_structured_output(EvaluationReportSchema)
+        structured_llm = llm.with_structured_output(EvaluationReportSchema, method="function_calling")
         result = structured_llm.invoke(prompt)
         
         return {
             "accuracy": result.accuracy_score,
             "fluency": result.fluency_score,
             "grammar": result.grammar_score,
+            "consistency": result.consistency_score,
+            "overall_score": result.overall_score,
             "summary": result.evaluation_summary
         }

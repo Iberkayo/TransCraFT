@@ -35,6 +35,8 @@ class Config:
     INPUTS_DIR = DATA_DIR / "inputs"
     REFERENCE_DIR = DATA_DIR / "reference"
     
+    STYLES_DIR = DATA_DIR / "styles"
+    
     STYLE_GUIDE_PATH = REFERENCE_DIR / "literary" / "style_guide.txt"
     GLOSSARY_PATH = REFERENCE_DIR / "literary" / "glossary.json"
     IDIOMS_PATH = REFERENCE_DIR / "idioms_en_tr.json"
@@ -48,6 +50,11 @@ class Config:
             genre_dir = cls.REFERENCE_DIR / "literary"
             
         return genre_dir / "style_guide.txt", genre_dir / "glossary.json"
+
+    @classmethod
+    def get_style_path(cls, style_preset: str) -> Path:
+        """Get the path to a specific style preset markdown file."""
+        return cls.STYLES_DIR / f"{style_preset}.md"
     
     # Graph Settings
     MAX_REVISIONS = 3

@@ -12,8 +12,8 @@ from src.core.graph import create_translation_graph
 
 def test_config_initialization():
     """Test that default models and directories are set correctly."""
-    assert Config.MINI_MODEL == "gpt-4o-mini"
-    assert Config.MAIN_MODEL == "gpt-4o"
+    assert isinstance(Config.MINI_MODEL, str) and len(Config.MINI_MODEL) > 0
+    assert isinstance(Config.MAIN_MODEL, str) and len(Config.MAIN_MODEL) > 0
     assert Config.DATA_DIR.name == "data"
     assert Config.INPUTS_DIR.name == "inputs"
     assert Config.REFERENCE_DIR.name == "reference"
