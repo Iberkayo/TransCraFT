@@ -71,22 +71,40 @@ async def translate_document(
         full_text = DocumentProcessor.load_document(tmp_path)
         chunks = DocumentProcessor.smart_chunk_text(full_text, max_chunk_size=chunk_size)
         
-        # Load style guide and glossary based on genre
-        style_guide_path, glossary_path = Config.get_genre_paths(genre)
-        style_guide = DocumentProcessor.load_document(style_guide_path) if style_guide_path.exists() else ""
+        style_guide_path = Config.get_style_path("modern_turkish")
+        _, glossary_path = Config.get_genre_paths(genre)
+        
+        style_guide = ""
+        if style_guide_path.exists():
+            with open(style_guide_path, "r", encoding="utf-8") as f:
+                style_guide = f.read()
+        
         glossary = []
         if glossary_path.exists():
-            with open(glossary_path, "r", encoding="utf-8") as gf:
-                glossary = json.load(gf)
-        
-        # Load idioms list
+            with open(glossary_path, "r", encoding="utf-8") as f:
+                glossary = json.load(f)
+                
         idioms = []
         if Config.IDIOMS_PATH.exists():
-            with open(Config.IDIOMS_PATH, "r", encoding="utf-8") as ifile:
-                idioms = json.load(ifile)
+            with open(Config.IDIOMS_PATH, "r", encoding="utf-8") as f:
+                idioms = json.load(f)
+                
+        # Load Negative Glossary
+        negative_glossary_path = Config.REFERENCE_DIR / "yanlis_ceviriler.json"
+        negative_glossary = {}
+        if negative_glossary_path.exists():
+            with open(negative_glossary_path, "r", encoding="utf-8") as f:
+                negative_glossary = json.load(f)
+
+        # Load Positive Glossary
+        positive_glossary_path = Config.REFERENCE_DIR / "positive_glossary.json"
+        positive_glossary = {}
+        if positive_glossary_path.exists():
+            with open(positive_glossary_path, "r", encoding="utf-8") as f:
+                positive_glossary = json.load(f)
 
         graph = create_translation_graph()
-        summary_llm = ChatOpenAI(api_key=Config.OPENAI_API_KEY, model=Config.MINI_MODEL, temperature=0)
+        summary_llm = ChatOpenAI(api_key=Config.OPENAI_API_KEY, base_url=Config.OPENAI_BASE_URL, model=Config.MINI_MODEL, temperature=0)
 
         translated_chunks = []
         previous_chunk_context = ""
@@ -98,8 +116,12 @@ async def translate_document(
                 "source_text": chunk_text,
                 "source_language": source_lang,
                 "target_language": target_lang,
+                "style_preset": "modern_turkish",
                 "style_guide": style_guide,
                 "glossary": glossary,
+                "positive_glossary": positive_glossary,
+                "negative_glossary": negative_glossary,
+                "auto_glossary_candidates": {},
                 "idioms": idioms,
                 "style_analysis": None,
                 "raw_translation": None,
@@ -138,6 +160,10 @@ async def translate_document(
 
         # Assemble full text
         full_translation = "\n\n".join(translated_chunks)
+        
+        # Run Consistency Check
+        from src.agents.consistency_checker import run_consistency_check
+        consistency_report = run_consistency_check(full_text, full_translation, positive_glossary)
 
         # Run evaluation
         eval_source = full_text[:4000] + "\n... [truncated] ...\n" + full_text[-4000:] if len(full_text) > 8000 else full_text

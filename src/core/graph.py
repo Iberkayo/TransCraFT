@@ -6,6 +6,8 @@ from src.agents.stylist import stylize_translation
 from src.agents.critic import evaluate_translation
 from src.agents.polisher import polish_translation
 
+from src.agents.extractor import extract_terminology
+
 def route_after_critic(state: TranslationState) -> str:
     """Determine whether to route to the polisher or loop back to the stylist."""
     if state.get("is_approved", False):
@@ -19,6 +21,7 @@ def create_translation_graph() -> StateGraph:
     workflow = StateGraph(TranslationState)
     
     # Add nodes (agents)
+    workflow.add_node("extractor", extract_terminology)
     workflow.add_node("analyst", analyze_style_and_culture)
     workflow.add_node("translator", translate_draft)
     workflow.add_node("stylist", stylize_translation)
@@ -26,9 +29,10 @@ def create_translation_graph() -> StateGraph:
     workflow.add_node("polisher", polish_translation)
     
     # Define execution flow
-    workflow.set_entry_point("analyst")
+    workflow.set_entry_point("extractor")
     
     # Linear connections
+    workflow.add_edge("extractor", "analyst")
     workflow.add_edge("analyst", "translator")
     workflow.add_edge("translator", "stylist")
     workflow.add_edge("stylist", "critic")

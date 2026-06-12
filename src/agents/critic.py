@@ -28,10 +28,28 @@ def evaluate_translation(state: TranslationState) -> dict:
     source_text = state["source_text"]
     stylized_translation = state["stylized_translation"]
     style_guide = state["style_guide"]
+    positive_glossary = state.get("positive_glossary", {})
+    auto_candidates = state.get("auto_glossary_candidates", {})
+    negative_glossary = state.get("negative_glossary", {})
     revision_count = state.get("revision_count", 0)
+
+    pos_glossary_text = ""
+    if positive_glossary:
+        pos_glossary_text = "\n### Positive Glossary (MUST USE):\n"
+        for k, v in positive_glossary.items():
+            pos_glossary_text += f"- '{k}' MUST be '{v}'\n"
     
     prompt = f"""
-You are an expert bilingual critic and translation quality auditor. Your task is to compare the source text and the stylized translation, ensuring that the translation is beautiful and accurate.
+You are an expert bilingual critic. Your task is to evaluate the stylized translation against the source text.
+You are extremely strict. If there are factual errors, omitted sentences, or major style guide violations, you must reject it.
+
+### Strict Validation Rules:
+1. Verify that all terms in the Positive Glossary were used exactly. If any are missing or translated differently, REJECT.
+2. Verify that NO terms from the Negative Glossary were used. If any are present, REJECT.
+3. Check Auto-Extracted Terminology Candidates (optional, but good to have).
+
+### Positive Glossary:
+{pos_glossary_text}
 
 ### Source Text:
 {source_text}
@@ -51,7 +69,7 @@ You are an expert bilingual critic and translation quality auditor. Your task is
 *Note: If this is Revision #{Config.MAX_REVISIONS}, be slightly more lenient to prevent infinite loops, and only reject if there are severe factual errors.*
 """
 
-    structured_llm = llm.with_structured_output(EvaluationSchema)
+    structured_llm = llm.with_structured_output(EvaluationSchema, method="function_calling")
     
     callbacks = []
     if trace_id:

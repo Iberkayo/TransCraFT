@@ -55,7 +55,8 @@ def run_evaluations():
                     metrics={
                         "accuracy": float(evaluation['accuracy']),
                         "fluency": float(evaluation['fluency']),
-                        "grammar": float(evaluation['grammar'])
+                        "grammar": float(evaluation['grammar']),
+                        "consistency": float(evaluation.get('consistency', 0.0))
                     }
                 )
                 

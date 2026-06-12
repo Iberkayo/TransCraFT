@@ -1,4 +1,9 @@
 langgraph>=0.0.10
+langchain>=0.1.0
+streamlit>=1.30.0
+EbookLib>=0.18
+beautifulsoup4>=4.12.0
+fpdf2>=2.7.0
 langchain-openai>=0.1.0
 pydantic>=2.0
 rich>=13.0

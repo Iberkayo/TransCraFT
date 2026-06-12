@@ -7,9 +7,13 @@ class TranslationState(TypedDict):
     target_language: str
     
     # Context / References loaded at start
+    style_preset: str
     style_guide: str
     glossary: List[Dict[str, str]]
+    positive_glossary: Dict[str, str]
+    negative_glossary: Dict[str, str]
     idioms: List[Dict[str, Any]]
+    auto_glossary_candidates: Dict[str, str]
     
     # Intermediate Outputs from Agents
     style_analysis: Optional[str]

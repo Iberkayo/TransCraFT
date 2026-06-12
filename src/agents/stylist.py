@@ -26,6 +26,28 @@ def stylize_translation(state: TranslationState) -> dict:
     # Stateful translation support
     prev_context = state.get("previous_chunk_context", "None (This is the first chunk)")
     dyn_glossary = state.get("dynamic_glossary", [])
+    negative_glossary = state.get("negative_glossary", {})
+    positive_glossary = state.get("positive_glossary", {})
+    auto_candidates = state.get("auto_glossary_candidates", {})
+    
+    # Format glossaries
+    pos_glossary_text = ""
+    if positive_glossary:
+        pos_glossary_text = "\n### Positive Glossary (HIGHEST PRIORITY - MUST PRESERVE):\n"
+        for k, v in positive_glossary.items():
+            pos_glossary_text += f"- '{k}' MUST remain '{v}'\n"
+
+    auto_glossary_text = ""
+    if auto_candidates:
+        auto_glossary_text = "\n### Auto-Extracted Terminology Candidates:\n"
+        for k, v in auto_candidates.items():
+            auto_glossary_text += f"- '{k}': '{v}'\n"
+
+    neg_glossary_text = ""
+    if negative_glossary:
+        neg_glossary_text = "\n### Negative Glossary (DO NOT USE):\n"
+        for k, v in negative_glossary.items():
+            neg_glossary_text += f"- Avoid translating '{k}' as its standard meaning. DO NOT use prohibited translations. Instead use: '{v}'\n"
     
     # Construct base prompt
     prompt = f"""
@@ -37,8 +59,11 @@ You are a master literary editor and stylist. Your goal is to rewrite the raw dr
 ### Narrative Context from Previous Chunk (For Continuity):
 {prev_context}
 
-### Dynamic Glossary of Terms (Must adhere to):
+### Glossaries and Terminology (Must adhere to):
 {dyn_glossary}
+{pos_glossary_text}
+{auto_glossary_text}
+{neg_glossary_text}
 
 ### Raw Draft Translation:
 {raw_translation}

@@ -22,8 +22,25 @@ class DocumentProcessor:
                 if page_text:
                     text_parts.append(page_text)
             return "\n\n".join(text_parts).strip()
+        elif suffix == ".epub":
+            import ebooklib
+            from ebooklib import epub
+            from bs4 import BeautifulSoup
+            
+            book = epub.read_epub(str(file_path))
+            text_parts = []
+            for item in book.get_items():
+                if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                    soup = BeautifulSoup(item.get_body_content(), 'html.parser')
+                    # Extract text and clean up whitespace
+                    text = soup.get_text(separator='\n')
+                    # Replace multiple newlines with double newline
+                    text = re.sub(r'\n{3,}', '\n\n', text)
+                    if text.strip():
+                        text_parts.append(text.strip())
+            return "\n\n".join(text_parts).strip()
         else:
-            raise ValueError(f"Unsupported file format: {suffix}. Only .txt and .pdf are supported.")
+            raise ValueError(f"Unsupported file format: {suffix}. Supported formats: .txt, .pdf, .epub.")
 
     @staticmethod
     def split_into_sentences(text: str) -> List[str]:

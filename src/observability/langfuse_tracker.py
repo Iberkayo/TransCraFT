@@ -35,14 +35,13 @@ class LangfuseTracker:
             return None
         
         try:
-            from langfuse.callback import CallbackHandler
+            from langfuse.langchain import CallbackHandler
+            from langfuse.types import TraceContext
+            
             handler = CallbackHandler(
                 public_key=Config.LANGFUSE_PUBLIC_KEY,
-                secret_key=Config.LANGFUSE_SECRET_KEY,
-                host=Config.LANGFUSE_HOST,
+                trace_context=TraceContext(trace_id=trace_id)
             )
-            # Link callback handler to the explicit trace ID
-            handler.set_trace_id(trace_id)
             return handler
         except Exception as e:
             print(f"Warning: Failed to create Langfuse callback handler. Error: {e}")
@@ -51,7 +50,7 @@ class LangfuseTracker:
     def create_trace(self, name: str, trace_id: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Create a new trace and return its ID."""
         if not trace_id:
-            trace_id = str(uuid.uuid4())
+            trace_id = uuid.uuid4().hex
 
         if not self.enabled or not self._langfuse:
             return trace_id
@@ -99,6 +98,8 @@ class LangfuseTracker:
         if self.enabled and self._langfuse:
             try:
                 self._langfuse.flush()
+                import langfuse
+                langfuse.flush()
             except Exception:
                 pass
 
