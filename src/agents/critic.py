@@ -20,6 +20,7 @@ def evaluate_translation(state: TranslationState) -> dict:
 
     llm = ChatOpenAI(
         api_key=Config.OPENAI_API_KEY,
+        base_url=Config.OPENAI_BASE_URL,
         model=Config.MAIN_MODEL,  # Use main model for critical evaluation
         temperature=0
     )

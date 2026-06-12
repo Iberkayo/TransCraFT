@@ -149,7 +149,12 @@ def main():
 
     # 4. Initialize Graph & Models
     graph = create_translation_graph()
-    summary_llm = ChatOpenAI(api_key=Config.OPENAI_API_KEY, model=Config.MINI_MODEL, temperature=0)
+    summary_llm = ChatOpenAI(
+        api_key=Config.OPENAI_API_KEY,
+        base_url=Config.OPENAI_BASE_URL,
+        model=Config.MINI_MODEL,
+        temperature=0
+    )
 
     # Initialize Langfuse Trace for this file
     run_name = f"translation_{input_path.stem}"

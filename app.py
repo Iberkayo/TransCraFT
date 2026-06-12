@@ -150,7 +150,12 @@ if uploaded_file is not None:
         dynamic_glossary = []
         
         graph = create_translation_graph()
-        summary_llm = ChatOpenAI(api_key=Config.OPENAI_API_KEY, model=Config.MINI_MODEL, temperature=0)
+        summary_llm = ChatOpenAI(
+            api_key=Config.OPENAI_API_KEY,
+            base_url=Config.OPENAI_BASE_URL,
+            model=Config.MINI_MODEL,
+            temperature=0
+        )
 
         # Initialize Langfuse Trace for this file
         run_name = f"translation_{Path(uploaded_file.name).stem}"
