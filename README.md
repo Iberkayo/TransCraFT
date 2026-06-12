@@ -19,35 +19,54 @@ Rather than executing dry, word-by-word machine translations, TransCraft orchest
 
 ---
 
+## 🏢 Enterprise Localization Features
+
+To ensure terminology consistency and publisher-level quality across large documents, TransCraft implements a robust layer of localization workflows:
+*   **Terminology Extraction Agent:** Analyzes the document *before* translation starts, identifying repeated technical terms and acronyms to create auto-glossary candidates. Features a fail-safe, regex-based fallback extraction if LLM formatting limits are hit.
+*   **Strict Glossary Hierarchy:** Enforces a rigid priority system during translation: **Positive Glossary** (User mandatory) > **Dynamic Auto-Glossary** > **Standard Glossary** > **Negative Glossary** (Forbidden terms).
+*   **Consistency Checker Agent:** A post-processing auditor that scans the *entire* translated document to ensure 100% terminology adherence, style consistency, and flags any un-translated English fragments.
+*   **Genre & Style Presets:** Decouples structural rules (genre) from linguistic flavor (style). Easily apply presets like `classic_literary`, `academic_technical`, or `publisher_editor`.
+*   **Native PDF Rendering:** Generates professional-looking PDF outputs that fully support native characters (e.g. Turkish `ş, ç, ğ`) directly from the Web UI.
+
+---
+
 ## 🤖 The Multi-Agent Architecture
 
 ```
-                      [Input Document]
-                             │
-                             ▼
-              [ 1. Style & Culture Analyst ]
-                             │
-                             ▼
-               [ 2. First-Pass Translator ]
-                             │
-                             ▼
-                 [ 3. Cultural Stylist ] ◄─────┐
-                             │                 │ (If rejected,
-                             ▼                 │  loops back)
-                  [ 4. Translation Critic ] ───┘
-                             │
-                             ▼ (If approved)
-                  [ 5. Final Copy-Editor ]
-                             │
-                             ▼
-                      [Polished Output]
+                       [Input Document]
+                              │
+                              ▼
+                [ 0. Terminology Extractor ]
+                              │
+                              ▼
+               [ 1. Style & Culture Analyst ]
+                              │
+                              ▼
+                [ 2. First-Pass Translator ]
+                              │
+                              ▼
+                  [ 3. Cultural Stylist ] ◄─────┐
+                              │                 │ (If rejected,
+                              ▼                 │  loops back)
+                   [ 4. Translation Critic ] ───┘
+                              │
+                              ▼ (If approved)
+                   [ 5. Final Copy-Editor ]
+                              │
+                              ▼
+               [ 6. Enterprise Consistency Checker ]
+                              │
+                              ▼
+                       [Polished Output]
 ```
 
+*   **Terminology Extractor:** Pre-processes the document to generate an auto-glossary of domain-specific terminology.
 *   **Style & Culture Analyst:** Profiles the text's tone, registers idioms, and maps vocabulary.
-*   **First-Pass Translator:** Conducts literal and semantic translation preserving facts and terminology.
+*   **First-Pass Translator:** Conducts literal and semantic translation preserving facts and terminology, adhering strictly to the Glossary Hierarchy.
 *   **Cultural Stylist:** Rewrites the draft to sound completely natural in the target language.
 *   **Translation Critic:** Performs comparative analysis, audits terminology, and requests revisions if criteria aren't met.
 *   **Final Polisher:** Inspects grammar, punctuation, and format encoding.
+*   **Consistency Checker:** Audits the fully assembled text for global terminology and stylistic consistency.
 
 ---
 
