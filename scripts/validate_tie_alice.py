@@ -73,7 +73,19 @@ def parse_tie_metrics(stdout: str) -> dict:
         "pollution_violations": 0
     }
     
-    matches = re.finditer(r"Review decision:\s*(\d+)\s*accepted,\s*(\d+)\s*pending,\s*(\d+)\s*rejected\.\s*Scope/pollution violations:\s*(\d+)", stdout, re.IGNORECASE)
+    # Clean ANSI escape sequences
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    cleaned = ansi_escape.sub('', stdout)
+    
+    # Clean Rich box-drawing characters
+    box_chars = "│┌┐└┘─┼┤├═║╔╗╚╝"
+    for char in box_chars:
+        cleaned = cleaned.replace(char, ' ')
+        
+    # Replace all newlines and multiple spaces with a single space
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+    
+    matches = re.finditer(r"Review decision:\s*(\d+)\s*accepted,\s*(\d+)\s*pending,\s*(\d+)\s*rejected\.\s*Scope/pollution violations:\s*(\d+)", cleaned, re.IGNORECASE)
     found_any = False
     for match in matches:
         found_any = True
@@ -82,7 +94,7 @@ def parse_tie_metrics(stdout: str) -> dict:
         metrics["rejected"] += int(match.group(3))
         metrics["pollution_violations"] += int(match.group(4))
         
-    cand_matches = re.finditer(r"Extracted\s*(\d+)\s*candidate", stdout, re.IGNORECASE)
+    cand_matches = re.finditer(r"Extracted\s*(\d+)\s*candidate", cleaned, re.IGNORECASE)
     for c_match in cand_matches:
         metrics["candidates"] += int(c_match.group(1))
         
@@ -90,6 +102,7 @@ def parse_tie_metrics(stdout: str) -> dict:
         metrics["candidates"] = metrics["accepted"] + metrics["pending"] + metrics["rejected"]
         
     return metrics
+
 
 def read_json_file(path: Path) -> list:
     if not path.exists():
