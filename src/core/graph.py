@@ -45,6 +45,8 @@ def run_context_router(state: TranslationState) -> dict:
     return {
         "relevant_memories": relevant,
         "compact_memory_context": compact,
+        "memory_loaded_count": router.last_loaded_count,
+        "memory_used_count": router.last_used_count,
         "logs": state.get("logs", []) + [log_entry]
     }
 
@@ -55,10 +57,12 @@ def run_memory_curator(state: TranslationState) -> dict:
         
     from src.tie.curator import MemoryCurator
     from src.tie.memory_manager import MemoryManager
+    from src.tie.reviewer import MemoryReviewer
     from src.core.config import Config
     
     manager = MemoryManager(base_dir=Config.MEMORY_DIR)
     curator = MemoryCurator(memory_manager=manager)
+    reviewer = MemoryReviewer()
     
     source_text = state.get("source_text", "")
     draft_translation = state.get("raw_translation", "")
@@ -74,7 +78,9 @@ def run_memory_curator(state: TranslationState) -> dict:
     genre = state.get("genre", "literary")
     work_id = state.get("work_id")
     user_id = state.get("user_id")
+    trace_id = state.get("trace_id")
     
+    # Extract candidate memories (but do not save directly)
     extracted = curator.run_curator(
         source_text=source_text,
         draft_translation=draft_translation,
@@ -82,16 +88,79 @@ def run_memory_curator(state: TranslationState) -> dict:
         final_translation=final_translation,
         genre=genre,
         work_id=work_id,
-        user_id=user_id
+        user_id=user_id,
+        persist=False
     )
     
+    accepted_count = 0
+    rejected_count = 0
+    pending_count = 0
+    pollution_violations = 0
+    
+    for item in extracted:
+        # Review candidate memory quality and scope isolation
+        reviewed = reviewer.review_candidate(
+            item=item,
+            work_id=work_id or "",
+            genre=genre or "",
+            user_id=user_id or "",
+            trace_id=trace_id
+        )
+        
+        status = reviewed.get("status", "active")
+        notes = reviewed.get("reviewer_notes", "")
+        
+        # Check if rejection notes indicate scope pollution/isolation breach
+        if status == "rejected" and ("Work isolation breach" in notes or "Genre mismatch" in notes):
+            pollution_violations += 1
+            
+        if status == "active":
+            scope = reviewed.get("scope", "global")
+            scope_id = None
+            if scope == "genre":
+                scope_id = genre or "literary"
+            elif scope == "work":
+                scope_id = work_id or "default_work"
+            elif scope == "user":
+                scope_id = user_id or "default_user"
+                
+            try:
+                manager.add_memory_item(scope=scope, item=reviewed, scope_id=scope_id)
+                accepted_count += 1
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to add memory item to TIE: {e}")
+        elif status == "pending":
+            scope = reviewed.get("scope", "global")
+            scope_id = None
+            if scope == "genre":
+                scope_id = genre or "literary"
+            elif scope == "work":
+                scope_id = work_id or "default_work"
+            elif scope == "user":
+                scope_id = user_id or "default_user"
+                
+            try:
+                manager.add_memory_item(scope=scope, item=reviewed, scope_id=scope_id)
+                pending_count += 1
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to add pending memory item: {e}")
+        else:
+            rejected_count += 1
+            
     log_entry = {
         "agent": "Memory Curator",
-        "action": "Extracted and curated translation intelligence items",
-        "output": f"Extracted {len(extracted)} item(s) and persisted to scopes." if extracted else "No new translation decisions met the criteria for curation."
+        "action": "Extracted and reviewed translation intelligence items",
+        "output": f"Extracted {len(extracted)} candidate(s). Review decision: {accepted_count} accepted, {pending_count} pending, {rejected_count} rejected. Scope/pollution violations: {pollution_violations}."
     }
     
     return {
+        "memory_candidates_count": len(extracted),
+        "memory_accepted_count": accepted_count,
+        "memory_rejected_count": rejected_count,
+        "memory_pending_count": pending_count,
+        "memory_pollution_violations": pollution_violations,
         "logs": state.get("logs", []) + [log_entry]
     }
 

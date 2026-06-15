@@ -31,7 +31,8 @@ class MemoryCurator:
                     final_translation: str,
                     genre: Optional[str] = None,
                     work_id: Optional[str] = None,
-                    user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+                    user_id: Optional[str] = None,
+                    persist: bool = True) -> List[Dict[str, Any]]:
         """
         Run the curator agent to extract and save translation intelligence.
         Returns the list of extracted items.
@@ -73,22 +74,23 @@ class MemoryCurator:
                 user_id=user_id
             )
 
-        # 2. Persist extracted items via MemoryManager
-        for item in extracted_items:
-            scope = item.get("scope", "global")
-            # Determine appropriate scope_id
-            scope_id = None
-            if scope == "genre":
-                scope_id = genre or "literary"
-            elif scope == "work":
-                scope_id = work_id or "default_work"
-            elif scope == "user":
-                scope_id = user_id or "default_user"
-                
-            try:
-                self.memory_manager.add_memory_item(scope=scope, item=item, scope_id=scope_id)
-            except Exception as e:
-                logger.error(f"Failed to add memory item to TIE: {e}")
+        # 2. Persist extracted items via MemoryManager if persist is True
+        if persist:
+            for item in extracted_items:
+                scope = item.get("scope", "global")
+                # Determine appropriate scope_id
+                scope_id = None
+                if scope == "genre":
+                    scope_id = genre or "literary"
+                elif scope == "work":
+                    scope_id = work_id or "default_work"
+                elif scope == "user":
+                    scope_id = user_id or "default_user"
+                    
+                try:
+                    self.memory_manager.add_memory_item(scope=scope, item=item, scope_id=scope_id)
+                except Exception as e:
+                    logger.error(f"Failed to add memory item to TIE: {e}")
                 
         return extracted_items
 

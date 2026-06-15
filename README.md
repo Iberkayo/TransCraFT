@@ -30,13 +30,15 @@ To ensure terminology consistency and publisher-level quality across large docum
 
 ---
 
-## 🧠 Translation Intelligence Engine (TIE) v0.1 (MVP)
+## 🧠 Translation Intelligence Engine (TIE) v0.2
 
-TransCraft features a model-independent **Translation Intelligence Engine (TIE)** layer that accumulates reusable translation knowledge across translation runs.
+TransCraft features a model-independent **Translation Intelligence Engine (TIE)** layer that accumulates reusable translation knowledge across runs while ensuring high memory quality and strict scope isolation.
 
-*   **Memory Layers (`memory/`):** Organized into `global/` (idioms, phrasing patterns), `genres/` (genre-specific heuristics), `works/` (character info, glossary, and style profiles), and `users/` (user preferences).
-*   **Context Router:** Analyzes translation metadata (user, genre, work) before execution to retrieve relevant memories and inject a compact context block into agent prompts.
-*   **Memory Curator Agent:** Observes the translation lifecycle (source, draft, critique, final polish) at the end of translation chunks to extract new terminology, proper nouns, corrections, and style choices. Employs a regex-based heuristic fallback if the LLM is unavailable.
+*   **Memory Layers (`memory/`):** Organized into `global/` (generic language-independent rules), `genres/` (genre-specific heuristics), `works/` (isolated character info, glossary, and style profiles), `users/` (user preferences), and `pending/` (low-confidence candidates awaiting validation).
+*   **Strict Scope Isolation:** Prevents cross-work contamination. When translating `attention_is_all_you_need`, Alice in Wonderland glossary/character details are completely excluded from the context.
+*   **Memory Reviewer Agent (`src/tie/reviewer.py`):** Filters curator candidates using rule-based prefiltering (instantly rejecting formatting/Gutenberg noise and scope mismatches) followed by optional LLM evaluation (`ENABLE_TIE_REVIEWER_LLM`). Only high-quality items are marked `active`; uncertain items are saved as `pending`.
+*   **Advanced Deduplication & Merge:** Merges duplicate rules using normalized key-matching, updating usage counts, and retaining maximum confidence/importance metrics.
+*   **Context Router:** Retrieves relevant memories using alphanumeric normalized key-matching and context length restriction (top `max_memory_items`, sorted by importance and confidence).
 *   **Handoff Generator:** Generates a reusable `translation_handoff.md` summarizing characters, active glossary, style rules, key decisions, and known pitfalls for continuing translation with other models.
 
 To run with TIE enabled:

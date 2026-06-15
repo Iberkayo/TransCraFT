@@ -30,6 +30,9 @@ class Config:
     MINI_MODEL = os.getenv("DEFAULT_MINI_MODEL", "gpt-4o-mini")
     MAIN_MODEL = os.getenv("DEFAULT_MAIN_MODEL", "gpt-4o")
     
+    # Memory Quality
+    ENABLE_TIE_REVIEWER_LLM = os.getenv("ENABLE_TIE_REVIEWER_LLM", "false").lower() == "true"
+    
     # Reference Paths
     DATA_DIR = PROJECT_ROOT / "data"
     INPUTS_DIR = DATA_DIR / "inputs"
