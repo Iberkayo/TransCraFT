@@ -12,23 +12,25 @@ logger = logging.getLogger(__name__)
 class MemoryManager:
     _backup_done = False  # Class variable to ensure we only backup once per process
 
-    def __init__(self, base_dir: Optional[Path] = None):
+    def __init__(self, base_dir: Optional[Path] = None, enable_backups: bool = True):
         if base_dir is None:
             # Resolve relative to project root
             self.base_dir = Path(__file__).resolve().parent.parent.parent / "memory"
         else:
             self.base_dir = Path(base_dir)
-            
+             
         self.global_dir = self.base_dir / "global"
         self.genres_dir = self.base_dir / "genres"
         self.works_dir = self.base_dir / "works"
         self.users_dir = self.base_dir / "users"
         self.pending_dir = self.base_dir / "pending"
         self.pending_file = self.pending_dir / "pending_memory.jsonl"
-        
-        # 1. Run backup of existing memory if any
-        self._backup_existing_memory()
-        
+        self._enable_backups = enable_backups
+         
+        # 1. Run backup of existing memory if any (only when backups enabled)
+        if self._enable_backups:
+            self._backup_existing_memory()
+         
         # 2. Ensure directories exist
         self._ensure_directories()
 

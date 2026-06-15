@@ -3,6 +3,7 @@
 import copy
 import json
 import tempfile
+import os
 from pathlib import Path
 
 from src.tie.memory_hygiene import MemoryHygieneManager
@@ -233,3 +234,57 @@ def test_work_memory_not_retired_too_aggressively():
     # Should be "downgrade" not "retire_candidate" since it's not global
     assert recs[0]["decision"] in {"downgrade", "review"}
     assert recs[0]["decision"] != "retire_candidate"
+
+
+def test_dry_run_does_not_create_backup_directory():
+    """Prove that --dry-run mode (enable_backups=False) does not create memory_backup_*."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        memory_dir = tmp_path / "memory"
+        memory_dir.mkdir(parents=True)
+
+        # Create a minimal memory file so MemoryManager finds the dir
+        global_dir = memory_dir / "global"
+        global_dir.mkdir(parents=True)
+        rules_file = global_dir / "rules.json"
+        rules_file.write_text(
+            json.dumps(
+                [
+                    {
+                        "key": "t1",
+                        "value": "v1",
+                        "type": "terminology",
+                        "scope": "global",
+                        "memory_id": "test1",
+                        "times_injected": 0,
+                        "times_detected_in_output": 0,
+                        "estimated_quality_impact_avg": 0.0,
+                        "harm_score_avg": 0.0,
+                        "effectiveness_sample_count": 0,
+                        "importance_score": 0.5,
+                        "status": "active",
+                        "confidence": 0.7,
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        # Record existing folders before creating MemoryManager
+        existing = set(os.listdir(tmp_path))
+
+        # Create manager with enable_backups=False (dry-run mode)
+        manager = MemoryManager(base_dir=memory_dir, enable_backups=False)
+        items = manager.all_memory_items()
+        assert len(items) >= 1
+
+        # Check no memory_backup_* directory was created
+        after = set(os.listdir(tmp_path))
+        new_dirs = after - existing
+        backup_dirs = [d for d in new_dirs if "memory_backup" in str(d)]
+        assert not backup_dirs, f"Backup directory created in dry-run mode: {backup_dirs}"
+
+        # Also explicitly check the parent of memory_dir
+        parent_contents = os.listdir(tmp_path)
+        backups_in_parent = [d for d in parent_contents if "memory_backup" in str(d)]
+        assert not backups_in_parent, f"Backup directory found: {backups_in_parent}"

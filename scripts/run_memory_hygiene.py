@@ -49,8 +49,8 @@ def main() -> None:
     print("=== TIE v0.4.1 Memory Hygiene ===")
     print(f"Mode: {'DRY-RUN (no mutations)' if dry_run else 'APPLY (will update memory metadata)'}")
 
-    # Load all memory items
-    manager = MemoryManager()
+    # Load all memory items (disable backups in dry-run mode)
+    manager = MemoryManager(enable_backups=not dry_run)
     memory_items = manager.all_memory_items()
 
     if not memory_items:
