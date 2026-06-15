@@ -49,6 +49,9 @@ def stylize_translation(state: TranslationState) -> dict:
         for k, v in negative_glossary.items():
             neg_glossary_text += f"- Avoid translating '{k}' as its standard meaning. DO NOT use prohibited translations. Instead use: '{v}'\n"
     
+    compact_memory_context = state.get("compact_memory_context", "")
+    tie_context = f"\n### Translation Intelligence (Previous Decisions/Rules):\n{compact_memory_context}\n" if compact_memory_context else ""
+
     # Construct base prompt
     prompt = f"""
 You are a master literary editor and stylist. Your goal is to rewrite the raw draft translation to make it sound completely natural, beautiful, and authentic in the target language. It must read like it was originally written by a talented native writer in that language, while preserving all the original meanings and characters.
@@ -58,7 +61,7 @@ You are a master literary editor and stylist. Your goal is to rewrite the raw dr
 
 ### Narrative Context from Previous Chunk (For Continuity):
 {prev_context}
-
+{tie_context}
 ### Glossaries and Terminology (Must adhere to):
 {dyn_glossary}
 {pos_glossary_text}

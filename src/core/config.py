@@ -34,12 +34,14 @@ class Config:
     DATA_DIR = PROJECT_ROOT / "data"
     INPUTS_DIR = DATA_DIR / "inputs"
     REFERENCE_DIR = DATA_DIR / "reference"
+    MEMORY_DIR = PROJECT_ROOT / "memory"
     
     STYLES_DIR = DATA_DIR / "styles"
     
     STYLE_GUIDE_PATH = REFERENCE_DIR / "literary" / "style_guide.txt"
     GLOSSARY_PATH = REFERENCE_DIR / "literary" / "glossary.json"
     IDIOMS_PATH = REFERENCE_DIR / "idioms_en_tr.json"
+
     
     @classmethod
     def get_genre_paths(cls, genre: str = "literary"):

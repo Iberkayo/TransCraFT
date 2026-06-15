@@ -38,3 +38,12 @@ class TranslationState(TypedDict):
     # Observability
     trace_id: Optional[str]
     chunk_index: Optional[int]
+
+    # Translation Intelligence Engine (TIE) fields
+    user_id: Optional[str]
+    work_id: Optional[str]
+    genre: Optional[str]
+    enable_tie: Optional[bool]
+    relevant_memories: Optional[List[Dict[str, Any]]]
+    compact_memory_context: Optional[str]
+

@@ -43,6 +43,9 @@ def translate_draft(state: TranslationState) -> dict:
         for k, v in negative_glossary.items():
             neg_glossary_text += f"- DO NOT translate '{k}' as its standard meaning. Instead use: '{v}'\n"
 
+    compact_memory_context = state.get("compact_memory_context", "")
+    tie_context = f"\n### Translation Intelligence (Previous Decisions/Rules):\n{compact_memory_context}\n" if compact_memory_context else ""
+
     prompt = f"""
 You are a high-fidelity semantic translator. Your goal is to translate the source text from {source_lang} to {target_lang} with maximum accuracy, ensuring no meaning, detail, or nuances are lost.
 
@@ -51,7 +54,7 @@ You are a high-fidelity semantic translator. Your goal is to translate the sourc
 2. Adhere strictly to the Positive Glossary. It has the HIGHEST priority.
 3. Adhere to the standard Glossary and Auto-Extracted Terminology.
 4. Obey the Negative Glossary. DO NOT use prohibited words.
-
+{tie_context}
 ### Standard Glossary:
 {glossary}
 {pos_glossary_text}

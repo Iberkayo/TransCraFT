@@ -30,6 +30,22 @@ To ensure terminology consistency and publisher-level quality across large docum
 
 ---
 
+## 🧠 Translation Intelligence Engine (TIE) v0.1 (MVP)
+
+TransCraft features a model-independent **Translation Intelligence Engine (TIE)** layer that accumulates reusable translation knowledge across translation runs.
+
+*   **Memory Layers (`memory/`):** Organized into `global/` (idioms, phrasing patterns), `genres/` (genre-specific heuristics), `works/` (character info, glossary, and style profiles), and `users/` (user preferences).
+*   **Context Router:** Analyzes translation metadata (user, genre, work) before execution to retrieve relevant memories and inject a compact context block into agent prompts.
+*   **Memory Curator Agent:** Observes the translation lifecycle (source, draft, critique, final polish) at the end of translation chunks to extract new terminology, proper nouns, corrections, and style choices. Employs a regex-based heuristic fallback if the LLM is unavailable.
+*   **Handoff Generator:** Generates a reusable `translation_handoff.md` summarizing characters, active glossary, style rules, key decisions, and known pitfalls for continuing translation with other models.
+
+To run with TIE enabled:
+```bash
+python main.py --input data/inputs/literary_english.txt --enable-tie --user berkay --work blood_meridian --generate-handoff
+```
+
+---
+
 ## 🤖 The Multi-Agent Architecture
 
 ```

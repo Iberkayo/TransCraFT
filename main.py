@@ -66,6 +66,13 @@ def main():
     parser.add_argument("--server", action="store_true", help="Start the FastAPI translation microservice server")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address for the server")
     parser.add_argument("--port", type=int, default=8000, help="Port for the server")
+    
+    # Translation Intelligence Engine (TIE) options
+    parser.add_argument("--user", type=str, default=None, help="User ID for preference tracking in TIE")
+    parser.add_argument("--work", type=str, default=None, help="Work ID/Name for project-specific memory in TIE")
+    parser.add_argument("--enable-tie", action="store_true", help="Enable the Translation Intelligence Engine (TIE)")
+    parser.add_argument("--generate-handoff", action="store_true", help="Generate a reusable handoff artifact translation_handoff.md")
+    
     args = parser.parse_args()
 
     # Welcome Banner
@@ -211,7 +218,15 @@ def main():
             "previous_chunk_context": previous_chunk_context,
             "dynamic_glossary": dynamic_glossary,
             "trace_id": trace_id,
-            "chunk_index": i
+            "chunk_index": i,
+            
+            # TIE initial state
+            "user_id": args.user,
+            "work_id": args.work,
+            "genre": args.genre,
+            "enable_tie": args.enable_tie,
+            "relevant_memories": None,
+            "compact_memory_context": None
         }
 
         current_log_index = 0
@@ -311,6 +326,27 @@ def main():
         # Delete recovery file upon successful completion
         if recovery_file.exists():
             recovery_file.unlink()
+
+        # TIE Handoff Generation
+        if args.enable_tie and args.generate_handoff:
+            console.print("\n[bold yellow]Generating Translation Handoff...[/bold yellow]\n")
+            from src.tie.handoff import HandoffGenerator
+            from src.tie.memory_manager import MemoryManager
+            
+            manager = MemoryManager(base_dir=Config.MEMORY_DIR)
+            handoff_gen = HandoffGenerator(memory_manager=manager)
+            handoff_path = output_dir / f"handoff_{input_path.stem}.md"
+            
+            try:
+                handoff_gen.generate_handoff_file(
+                    output_path=handoff_path,
+                    work_id=args.work,
+                    genre=args.genre,
+                    user_id=args.user
+                )
+                console.print(f"[success]🎉 Handoff generated successfully! Saved to:[/success] [accent]{handoff_path.absolute()}[/accent]\n")
+            except Exception as e:
+                console.print(f"[warning]Failed to generate translation handoff: {e}[/warning]\n")
             
         # 6.5 Consistency Checker Post-Process
         console.print("[bold yellow]Running Enterprise Consistency Checker...[/bold yellow]\n")
