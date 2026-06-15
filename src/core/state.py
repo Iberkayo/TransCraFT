@@ -48,4 +48,4 @@ class TranslationState(TypedDict):
     enable_tie: Optional[bool]
     relevant_memories: Optional[List[Dict[str, Any]]]
     compact_memory_context: Optional[str]
-
+    memory_provenance: Optional[List[Dict[str, Any]]]

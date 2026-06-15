@@ -38,6 +38,8 @@ class Config:
     INPUTS_DIR = DATA_DIR / "inputs"
     REFERENCE_DIR = DATA_DIR / "reference"
     MEMORY_DIR = PROJECT_ROOT / "memory"
+    CONFIG_DIR = DATA_DIR / "config"
+    AUTHOR_MAPPING_PATH = CONFIG_DIR / "author_mapping.json"
     
     STYLES_DIR = DATA_DIR / "styles"
     

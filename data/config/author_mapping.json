@@ -1,0 +1,14 @@
+{
+  "blood_meridian": {
+    "author_id": "cormac_mccarthy",
+    "author_name": "Cormac McCarthy"
+  },
+  "alice_in_wonderland": {
+    "author_id": "lewis_carroll",
+    "author_name": "Lewis Carroll"
+  },
+  "attention_is_all_you_need": {
+    "author_id": "vaswani_et_al",
+    "author_name": "Vaswani Et Al"
+  }
+}

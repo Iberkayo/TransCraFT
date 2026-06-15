@@ -374,7 +374,14 @@ def main():
         # 6.5 Consistency Checker Post-Process
         console.print("[bold yellow]Running Enterprise Consistency Checker...[/bold yellow]\n")
         from src.agents.consistency_checker import run_consistency_check
-        consistency_report = run_consistency_check(full_text, full_translation, positive_glossary)
+        consistency_report = run_consistency_check(
+            full_text,
+            full_translation,
+            positive_glossary,
+            genre=args.genre,
+            work_id=args.work,
+            user_id=args.user,
+        )
         
         if consistency_report.get("issues_found", 0) > 0:
             console.print(f"[warning]Found {consistency_report['issues_found']} potential inconsistencies.[/warning]")
@@ -383,24 +390,6 @@ def main():
                 
         if consistency_report.get("glossary_candidates"):
             console.print(f"[info]Extracted {len(consistency_report['glossary_candidates'])} terminology recommendations.[/info]")
-            # Save candidates
-            runtime_dir = Config.DATA_DIR / "runtime"
-            runtime_dir.mkdir(parents=True, exist_ok=True)
-            candidate_path = runtime_dir / "auto_glossary_candidate.json"
-            try:
-                if candidate_path.exists():
-                    with open(candidate_path, "r", encoding="utf-8") as f:
-                        disk_candidates = json.load(f)
-                else:
-                    disk_candidates = {}
-                    
-                for rec in consistency_report["glossary_candidates"]:
-                    disk_candidates[rec["source_term"]] = rec["target_term"]
-                    
-                with open(candidate_path, "w", encoding="utf-8") as f:
-                    json.dump(disk_candidates, f, ensure_ascii=False, indent=2)
-            except Exception as e:
-                pass
             
         # 7. Run AI Quality Evaluation
         console.print("[bold yellow]Running AI-as-a-Judge Quality Evaluation...[/bold yellow]\n")

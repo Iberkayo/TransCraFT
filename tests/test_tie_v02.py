@@ -231,7 +231,8 @@ def test_memory_metadata_schema(temp_memory_dir):
     saved_item = data[0]
     required_fields = [
         "importance_score", "usage_count", "status", "confidence", 
-        "created_at", "updated_at", "source_work", "source_genre", "source_user"
+        "created_at", "updated_at", "source_work", "source_genre", "source_user",
+        "memory_id", "provenance"
     ]
     
     for field in required_fields:
@@ -240,3 +241,28 @@ def test_memory_metadata_schema(temp_memory_dir):
     assert saved_item["source_work"] == "test_work"
     assert saved_item["source_genre"] == "literary"
     assert saved_item["source_user"] == "test_user"
+    assert saved_item["memory_id"]
+    assert saved_item["provenance"]["source_work"] == "test_work"
+    assert saved_item["provenance"]["source_genre"] == "literary"
+    assert saved_item["provenance"]["source_user"] == "test_user"
+
+def test_memory_provenance_keeps_chunk_and_trace(temp_memory_dir):
+    """Test that curator provenance metadata is preserved on saved memory items."""
+    manager = MemoryManager(base_dir=temp_memory_dir)
+
+    item = {
+        "key": "bottomland",
+        "value": "ova",
+        "type": "terminology",
+        "confidence": 0.8,
+        "source_chunk": 3,
+        "trace_id": "trace-123",
+        "created_by": "memory_curator"
+    }
+    manager.add_memory_item(scope="work", item=item, scope_id="test_work", work_id="test_work", genre="literary")
+
+    saved_item = manager.get_memory_items(scope="work", scope_id="test_work")[0]
+    assert saved_item["memory_id"]
+    assert saved_item["provenance"]["created_by"] == "memory_curator"
+    assert saved_item["provenance"]["source_chunk"] == 3
+    assert saved_item["provenance"]["trace_id"] == "trace-123"

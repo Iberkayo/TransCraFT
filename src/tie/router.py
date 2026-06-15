@@ -177,15 +177,15 @@ class ContextRouter:
                 from src.tie.style_profiler import AuthorStyleProfiler
                 from src.tie.style_contract import StyleContractGenerator
                 
-                # Resolve author ID
-                mapping = {
-                    "blood_meridian": "cormac_mccarthy",
-                    "alice_in_wonderland": "lewis_carroll",
-                    "attention_is_all_you_need": "vaswani_et_al"
-                }
-                work_key = work_id.lower().strip().replace(" ", "_")
-                author_id = mapping.get(work_key, f"author_{work_key}")
-                author_name = author_id.replace("_", " ").title()
+                from src.tie.author_mapping import resolve_author_for_work
+
+                author_info = resolve_author_for_work(work_id)
+                if not author_info:
+                    return "\n".join(lines)
+
+                work_key = author_info["work_key"]
+                author_id = author_info["author_id"]
+                author_name = author_info["author_name"]
                 
                 profiler = AuthorStyleProfiler(base_dir=self.memory_manager.base_dir)
                 contract_gen = StyleContractGenerator(base_dir=self.memory_manager.base_dir)

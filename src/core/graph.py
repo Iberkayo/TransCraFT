@@ -35,16 +35,29 @@ def run_context_router(state: TranslationState) -> dict:
         user_id=user_id
     )
     compact = router.generate_compact_context(relevant, work_id=work_id)
+    memory_provenance = [
+        {
+            "memory_id": item.get("memory_id"),
+            "key": item.get("key"),
+            "type": item.get("type"),
+            "scope": item.get("scope"),
+            "scope_id": item.get("scope_id"),
+        }
+        for item in relevant
+        if item.get("memory_id")
+    ]
+    memory_id_text = ", ".join(item["memory_id"] for item in memory_provenance) or "None"
     
     log_entry = {
         "agent": "Context Router",
         "action": "Retrieved relevant translation memories",
-        "output": f"Loaded {len(relevant)} memory item(s). Compact Context:\n{compact}" if relevant else "No relevant memories found."
+        "output": f"Loaded {len(relevant)} memory item(s). Memory IDs used: {memory_id_text}. Compact Context:\n{compact}" if relevant else "No relevant memories found."
     }
     
     return {
         "relevant_memories": relevant,
         "compact_memory_context": compact,
+        "memory_provenance": memory_provenance,
         "memory_loaded_count": router.last_loaded_count,
         "memory_used_count": router.last_used_count,
         "logs": state.get("logs", []) + [log_entry]
@@ -79,6 +92,7 @@ def run_memory_curator(state: TranslationState) -> dict:
     work_id = state.get("work_id")
     user_id = state.get("user_id")
     trace_id = state.get("trace_id")
+    chunk_index = state.get("chunk_index")
     
     # Extract candidate memories (but do not save directly)
     extracted = curator.run_curator(
@@ -98,6 +112,10 @@ def run_memory_curator(state: TranslationState) -> dict:
     pollution_violations = 0
     
     for item in extracted:
+        item.setdefault("created_by", "memory_curator")
+        item.setdefault("source_chunk", chunk_index)
+        item.setdefault("trace_id", trace_id)
+
         # Review candidate memory quality and scope isolation
         reviewed = reviewer.review_candidate(
             item=item,

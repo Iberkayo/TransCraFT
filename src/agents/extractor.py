@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from src.core.config import Config
 from src.core.state import TranslationState
+from src.core.scoped_glossary import ScopedGlossaryStore
 from src.observability.langfuse_tracker import tracker
 
 class ExtractedTerms(BaseModel):
@@ -75,32 +76,19 @@ Return a dictionary where keys are the source terms and values are your proposed
 
     tracker.end_span(span, output_data=str(extracted_dict))
 
-    # Append to auto_glossary_candidates state, and optionally save to disk
+    # Append to auto_glossary_candidates state, and save under the active scope.
     existing_candidates = state.get("auto_glossary_candidates", {})
     if existing_candidates is None:
         existing_candidates = {}
-        
-    existing_candidates.update(extracted_dict)
 
-    # Save to data/runtime/auto_glossary_candidate.json
-    runtime_dir = Config.DATA_DIR / "runtime"
-    runtime_dir.mkdir(parents=True, exist_ok=True)
-    candidate_path = runtime_dir / "auto_glossary_candidate.json"
-    
-    # Merge with existing file if it exists
-    if candidate_path.exists():
-        try:
-            with open(candidate_path, "r", encoding="utf-8") as f:
-                disk_candidates = json.load(f)
-        except:
-            disk_candidates = {}
-    else:
-        disk_candidates = {}
-        
-    disk_candidates.update(extracted_dict)
-    
-    with open(candidate_path, "w", encoding="utf-8") as f:
-        json.dump(disk_candidates, f, ensure_ascii=False, indent=2)
+    store = ScopedGlossaryStore(Config.DATA_DIR / "runtime")
+    scoped_candidates = store.merge(
+        extracted_dict,
+        genre=state.get("genre"),
+        work_id=state.get("work_id"),
+        user_id=state.get("user_id"),
+    )
+    existing_candidates.update(scoped_candidates)
 
     log_entry = {
         "agent": "Terminology Extractor",

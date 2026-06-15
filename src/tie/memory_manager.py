@@ -3,6 +3,7 @@ import logging
 import datetime
 import shutil
 import re
+import hashlib
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -62,6 +63,28 @@ class MemoryManager:
         """Normalize key by removing all non-alphanumeric characters and lowercasing."""
         return re.sub(r'[^a-zA-Z0-9]', '', str(key).lower().strip())
 
+    def _build_memory_id(self, record: Dict[str, Any]) -> str:
+        raw = "|".join([
+            str(record.get("scope", "")),
+            str(record.get("scope_id", "")),
+            str(record.get("type", "")),
+            self._normalize_key(record.get("key", "")),
+            str(record.get("source_work", "")),
+            str(record.get("source_genre", "")),
+            str(record.get("source_user", "")),
+        ])
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+    def _build_provenance(self, record: Dict[str, Any], item: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "created_by": item.get("created_by", "memory_curator"),
+            "source_work": record.get("source_work"),
+            "source_genre": record.get("source_genre"),
+            "source_user": record.get("source_user"),
+            "source_chunk": item.get("source_chunk"),
+            "trace_id": item.get("trace_id"),
+        }
+
     def _migrate_record(self, record: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
         """Migrate a record to include all TIE v0.2 metadata. Returns (migrated_record, was_changed)."""
         changed = False
@@ -88,6 +111,21 @@ class MemoryManager:
                 else:
                     record[k] = v
                     changed = True
+
+        if "memory_id" not in record:
+            record["memory_id"] = self._build_memory_id(record)
+            changed = True
+
+        if "provenance" not in record:
+            record["provenance"] = {
+                "created_by": record.get("created_by", "unknown"),
+                "source_work": record.get("source_work"),
+                "source_genre": record.get("source_genre"),
+                "source_user": record.get("source_user"),
+                "source_chunk": record.get("source_chunk"),
+                "trace_id": record.get("trace_id"),
+            }
+            changed = True
                     
         return record, changed
 
@@ -161,12 +199,14 @@ class MemoryManager:
             "source_user": user_id or item.get("source_user"),
             "status": status
         }
+        if scope_id:
+            record["scope_id"] = scope_id
+        record["memory_id"] = item.get("memory_id") or self._build_memory_id(record)
+        record["provenance"] = item.get("provenance") or self._build_provenance(record, item)
         if "notes" in item:
             record["notes"] = item["notes"]
         if "reviewer_notes" in item:
             record["reviewer_notes"] = item["reviewer_notes"]
-        if scope_id:
-            record["scope_id"] = scope_id
 
         # If status is pending, store in the pending memory JSONL file
         if status == "pending":

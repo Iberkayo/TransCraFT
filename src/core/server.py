@@ -163,7 +163,12 @@ async def translate_document(
         
         # Run Consistency Check
         from src.agents.consistency_checker import run_consistency_check
-        consistency_report = run_consistency_check(full_text, full_translation, positive_glossary)
+        consistency_report = run_consistency_check(
+            full_text,
+            full_translation,
+            positive_glossary,
+            genre=genre,
+        )
 
         # Run evaluation
         eval_source = full_text[:4000] + "\n... [truncated] ...\n" + full_text[-4000:] if len(full_text) > 8000 else full_text

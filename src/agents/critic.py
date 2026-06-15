@@ -97,32 +97,31 @@ You are extremely strict. If there are factual errors, omitted sentences, or maj
             from src.tie.style_contract import StyleContractGenerator
             from src.tie.style_critic import StyleConsistencyCritic
             
-            # Resolve author ID
+            from src.tie.author_mapping import resolve_author_for_work
+
             work_id = state.get("work_id")
-            mapping = {
-                "blood_meridian": "cormac_mccarthy",
-                "alice_in_wonderland": "lewis_carroll",
-                "attention_is_all_you_need": "vaswani_et_al"
-            }
-            work_key = work_id.lower().strip().replace(" ", "_")
-            author_id = mapping.get(work_key, f"author_{work_key}")
-            author_name = author_id.replace("_", " ").title()
+            author_info = resolve_author_for_work(work_id)
+
+            if author_info:
+                work_key = author_info["work_key"]
+                author_id = author_info["author_id"]
+                author_name = author_info["author_name"]
             
-            profiler = AuthorStyleProfiler(base_dir=Config.MEMORY_DIR)
-            contract_gen = StyleContractGenerator(base_dir=Config.MEMORY_DIR)
-            critic_instance = StyleConsistencyCritic()
-            
-            # Load or infer profile & contract
-            profile = profiler.load_or_infer_profile(author_id, author_name)
-            contract = contract_gen.load_or_generate_contract(work_key, profile)
-            
-            style_evaluation = critic_instance.evaluate(
-                source_text=source_text,
-                translated_text=stylized_translation,
-                author_style_profile=profile,
-                style_contract=contract,
-                trace_id=trace_id
-            )
+                profiler = AuthorStyleProfiler(base_dir=Config.MEMORY_DIR)
+                contract_gen = StyleContractGenerator(base_dir=Config.MEMORY_DIR)
+                critic_instance = StyleConsistencyCritic()
+                
+                # Load or infer profile & contract
+                profile = profiler.load_or_infer_profile(author_id, author_name)
+                contract = contract_gen.load_or_generate_contract(work_key, profile)
+                
+                style_evaluation = critic_instance.evaluate(
+                    source_text=source_text,
+                    translated_text=stylized_translation,
+                    author_style_profile=profile,
+                    style_contract=contract,
+                    trace_id=trace_id
+                )
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Failed to run StyleConsistencyCritic in evaluate_translation: {e}")

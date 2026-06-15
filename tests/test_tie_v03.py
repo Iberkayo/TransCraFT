@@ -6,6 +6,8 @@ from src.tie.memory_manager import MemoryManager
 from src.tie.style_profiler import AuthorStyleProfiler
 from src.tie.style_contract import StyleContractGenerator
 from src.tie.router import ContextRouter
+from src.tie.author_mapping import resolve_author_for_work
+from src.core.config import Config
 
 @pytest.fixture
 def temp_memory_dir(tmp_path):
@@ -53,6 +55,8 @@ def test_unknown_author_profile_generation(temp_memory_dir):
 
 def test_style_contract_generation(temp_memory_dir):
     contract_gen = StyleContractGenerator(base_dir=temp_memory_dir)
+    old_key = Config.OPENAI_API_KEY
+    Config.OPENAI_API_KEY = None
     author_profile = {
         "author_id": "cormac_mccarthy",
         "author_name": "Cormac McCarthy",
@@ -61,16 +65,20 @@ def test_style_contract_generation(temp_memory_dir):
             "sentence_rhythm": "fragmentary"
         }
     }
-    
-    contract = contract_gen.load_or_generate_contract("blood_meridian", author_profile)
-    
-    assert contract["tone"] != ""
-    assert len(contract["rules"]) > 0
-    assert any("See the child" in r or "Imperatives" in r or "presentation" in r for r in contract["rules"])
-    
-    # Verify contract was saved to disk
-    contract_path = temp_memory_dir / "works" / "blood_meridian" / "style" / "style_contract.json"
-    assert contract_path.exists()
+
+    try:
+        contract = contract_gen.load_or_generate_contract("blood_meridian", author_profile)
+
+        assert contract["tone"] == "bleak"
+        assert contract["sentence_rhythm"] == "fragmentary"
+        assert len(contract["rules"]) > 0
+        assert not any("See the child" in r for r in contract["rules"])
+
+        # Verify contract was saved to disk
+        contract_path = temp_memory_dir / "works" / "blood_meridian" / "style" / "style_contract.json"
+        assert contract_path.exists()
+    finally:
+        Config.OPENAI_API_KEY = old_key
 
 def test_router_includes_style_context(temp_memory_dir):
     # Setup mock author profile and contract
@@ -101,3 +109,24 @@ def test_router_includes_style_context(temp_memory_dir):
     assert "### Style & Narrative Voice Guidelines" in compact
     assert "Tone" in compact
     assert "Sentence Rhythm" in compact
+
+def test_router_skips_style_context_for_unmapped_work(temp_memory_dir):
+    manager = MemoryManager(base_dir=temp_memory_dir)
+    router = ContextRouter(memory_manager=manager)
+
+    relevant = router.retrieve_relevant_memory(
+        source_text="A neutral sentence.",
+        work_id="unmapped_work"
+    )
+    compact = router.generate_compact_context(relevant, work_id="unmapped_work")
+
+    assert "### Style & Narrative Voice Guidelines" not in compact
+
+def test_author_mapping_loads_known_work():
+    author_info = resolve_author_for_work("blood_meridian")
+
+    assert author_info == {
+        "work_key": "blood_meridian",
+        "author_id": "cormac_mccarthy",
+        "author_name": "Cormac McCarthy",
+    }

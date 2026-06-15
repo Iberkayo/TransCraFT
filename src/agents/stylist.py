@@ -75,7 +75,7 @@ You are a master literary editor and stylist. Your goal is to rewrite the raw dr
 ### CRITICAL STYLE ENFORCEMENT RULES:
 1. You MUST strongly prioritize style, narrative tone preservation, voice consistency, and sentence rhythm adaptation.
 2. If the style directives specify preserving sentence fragments, coordinate clauses, or bleak atmospheric rhythm, you MUST enforce this in the Turkish text. DO NOT combine stark fragments or split sentences unless explicitly allowed.
-3. Pay special attention to scenic presentation directives (e.g. scenic visual imperatives like 'See the child.' MUST be translated directly into scenic Turkish presentation like 'Çocuğa bakın.', 'Karşınızda çocuk.', or 'Bakın çocuk.' rather than flat cognitive instructions like 'Çocuğu görün.').
+3. Pay close attention to any work-specific scenic, rhetorical, register, or punctuation directives supplied in the style contract.
 4. Do not insert modern Turkish conversational filler words or explanatory conjunctions (like 'çünkü', 'fakat', 'ise') to bridge coordinate paratactic clauses if the style contract forbids them.
 {style_guidelines_text}
 
