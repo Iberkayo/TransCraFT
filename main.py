@@ -66,6 +66,13 @@ def main():
     parser.add_argument("--server", action="store_true", help="Start the FastAPI translation microservice server")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address for the server")
     parser.add_argument("--port", type=int, default=8000, help="Port for the server")
+    
+    # Translation Intelligence Engine (TIE) options
+    parser.add_argument("--user", type=str, default=None, help="User ID for preference tracking in TIE")
+    parser.add_argument("--work", type=str, default=None, help="Work ID/Name for project-specific memory in TIE")
+    parser.add_argument("--enable-tie", action="store_true", help="Enable the Translation Intelligence Engine (TIE)")
+    parser.add_argument("--generate-handoff", action="store_true", help="Generate a reusable handoff artifact translation_handoff.md")
+    
     args = parser.parse_args()
 
     # Welcome Banner
@@ -188,6 +195,15 @@ def main():
     )
     start_time = time.time()
 
+    # Accumulators for TIE metrics
+    total_candidates_count = 0
+    total_accepted_count = 0
+    total_rejected_count = 0
+    total_pending_count = 0
+    total_loaded_count = 0
+    total_used_count = 0
+    total_pollution_violations = 0
+
     # 5. Process each chunk
     for i in range(start_chunk_index, len(chunks)):
         chunk_text = chunks[i]
@@ -211,7 +227,16 @@ def main():
             "previous_chunk_context": previous_chunk_context,
             "dynamic_glossary": dynamic_glossary,
             "trace_id": trace_id,
-            "chunk_index": i
+            "chunk_index": i,
+            
+            # TIE initial state
+            "user_id": args.user,
+            "work_id": args.work,
+            "genre": args.genre,
+            "enable_tie": args.enable_tie,
+            "relevant_memories": None,
+            "compact_memory_context": None,
+            "style_revision_count": 0
         }
 
         current_log_index = 0
@@ -221,6 +246,19 @@ def main():
         for output in graph.stream(initial_state):
             node_name = list(output.keys())[0]
             node_state = output[node_name]
+            if not node_state or not isinstance(node_state, dict):
+                continue
+                
+            # Accumulate TIE metrics
+            if node_name == "router":
+                total_loaded_count += node_state.get("memory_loaded_count", 0)
+                total_used_count += node_state.get("memory_used_count", 0)
+            elif node_name == "curator":
+                total_candidates_count += node_state.get("memory_candidates_count", 0)
+                total_accepted_count += node_state.get("memory_accepted_count", 0)
+                total_rejected_count += node_state.get("memory_rejected_count", 0)
+                total_pending_count += node_state.get("memory_pending_count", 0)
+                total_pollution_violations += node_state.get("memory_pollution_violations", 0)
             
             logs = node_state.get("logs", [])
             while current_log_index < len(logs):
@@ -311,11 +349,39 @@ def main():
         # Delete recovery file upon successful completion
         if recovery_file.exists():
             recovery_file.unlink()
+
+        # TIE Handoff Generation
+        if args.enable_tie and args.generate_handoff:
+            console.print("\n[bold yellow]Generating Translation Handoff...[/bold yellow]\n")
+            from src.tie.handoff import HandoffGenerator
+            from src.tie.memory_manager import MemoryManager
+            
+            manager = MemoryManager(base_dir=Config.MEMORY_DIR)
+            handoff_gen = HandoffGenerator(memory_manager=manager)
+            handoff_path = output_dir / f"handoff_{input_path.stem}.md"
+            
+            try:
+                handoff_gen.generate_handoff_file(
+                    output_path=handoff_path,
+                    work_id=args.work,
+                    genre=args.genre,
+                    user_id=args.user
+                )
+                console.print(f"[success]🎉 Handoff generated successfully! Saved to:[/success] [accent]{handoff_path.absolute()}[/accent]\n")
+            except Exception as e:
+                console.print(f"[warning]Failed to generate translation handoff: {e}[/warning]\n")
             
         # 6.5 Consistency Checker Post-Process
         console.print("[bold yellow]Running Enterprise Consistency Checker...[/bold yellow]\n")
         from src.agents.consistency_checker import run_consistency_check
-        consistency_report = run_consistency_check(full_text, full_translation, positive_glossary)
+        consistency_report = run_consistency_check(
+            full_text,
+            full_translation,
+            positive_glossary,
+            genre=args.genre,
+            work_id=args.work,
+            user_id=args.user,
+        )
         
         if consistency_report.get("issues_found", 0) > 0:
             console.print(f"[warning]Found {consistency_report['issues_found']} potential inconsistencies.[/warning]")
@@ -324,24 +390,6 @@ def main():
                 
         if consistency_report.get("glossary_candidates"):
             console.print(f"[info]Extracted {len(consistency_report['glossary_candidates'])} terminology recommendations.[/info]")
-            # Save candidates
-            runtime_dir = Config.DATA_DIR / "runtime"
-            runtime_dir.mkdir(parents=True, exist_ok=True)
-            candidate_path = runtime_dir / "auto_glossary_candidate.json"
-            try:
-                if candidate_path.exists():
-                    with open(candidate_path, "r", encoding="utf-8") as f:
-                        disk_candidates = json.load(f)
-                else:
-                    disk_candidates = {}
-                    
-                for rec in consistency_report["glossary_candidates"]:
-                    disk_candidates[rec["source_term"]] = rec["target_term"]
-                    
-                with open(candidate_path, "w", encoding="utf-8") as f:
-                    json.dump(disk_candidates, f, ensure_ascii=False, indent=2)
-            except Exception as e:
-                pass
             
         # 7. Run AI Quality Evaluation
         console.print("[bold yellow]Running AI-as-a-Judge Quality Evaluation...[/bold yellow]\n")
@@ -356,7 +404,9 @@ def main():
             scores_str = f"⭐ [success]Doğruluk (Accuracy):[/success] {evaluation['accuracy']}/5 | " \
                          f"⭐ [success]Akıcılık (Fluency):[/success] {evaluation['fluency']}/5 | " \
                          f"⭐ [success]İmla (Grammar):[/success] {evaluation['grammar']}/5 | " \
-                         f"⭐ [success]Tutarlılık (Consistency):[/success] {evaluation['consistency']}/5"
+                         f"⭐ [success]Tutarlılık (Consistency):[/success] {evaluation['consistency']}/5 | " \
+                         f"⭐ [success]Doğallık (Naturalness):[/success] {evaluation['naturalness']}/5 | " \
+                         f"⭐ [success]Terimler (Terminology):[/success] {evaluation['terminology_adherence']}/5"
                          
             console.print(Panel(
                 f"{scores_str}\n\n[bold white]Overall Quality Score:[/bold white] {evaluation['overall_score']:.1f}/5.0\n\n{evaluation['summary']}",
@@ -368,6 +418,32 @@ def main():
 
             # 8. Log Experiment to MLflow
             end_time = time.time()
+            
+            # Compute pollution risk score
+            pollution_risk_score = float(total_pollution_violations) / max(1, total_candidates_count) if total_candidates_count > 0 else 0.0
+            
+            metrics = {
+                "accuracy": float(evaluation['accuracy']),
+                "fluency": float(evaluation['fluency']),
+                "grammar": float(evaluation['grammar']),
+                "consistency": float(evaluation['consistency']),
+                "naturalness": float(evaluation['naturalness']),
+                "terminology_adherence": float(evaluation['terminology_adherence']),
+                "overall_score": float(evaluation['overall_score']),
+                "total_latency_seconds": end_time - start_time
+            }
+            
+            if args.enable_tie:
+                metrics.update({
+                    "memory_candidates_count": float(total_candidates_count),
+                    "memory_accepted_count": float(total_accepted_count),
+                    "memory_rejected_count": float(total_rejected_count),
+                    "memory_pending_count": float(total_pending_count),
+                    "memory_loaded_count": float(total_loaded_count),
+                    "memory_used_count": float(total_used_count),
+                    "memory_pollution_risk_score": pollution_risk_score
+                })
+
             mlflow_tracker.log_translation_experiment(
                 run_name=run_name,
                 params={
@@ -377,14 +453,14 @@ def main():
                     "source_lang": args.source_lang,
                     "target_lang": args.target_lang,
                     "chunk_size": args.chunk_size,
-                    "num_chunks": len(chunks)
+                    "num_chunks": len(chunks),
+                    "input_file": input_path.name,
+                    "work": args.work or "None",
+                    "user": args.user or "None",
+                    "tie_enabled": str(args.enable_tie),
+                    "prompt_version": "v0.2"
                 },
-                metrics={
-                    "accuracy": float(evaluation['accuracy']),
-                    "fluency": float(evaluation['fluency']),
-                    "grammar": float(evaluation['grammar']),
-                    "total_latency_seconds": end_time - start_time
-                },
+                metrics=metrics,
                 artifacts={"output_file": str(output_file.absolute())}
             )
             tracker.flush()

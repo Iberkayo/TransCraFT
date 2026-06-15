@@ -1,0 +1,40 @@
+{
+  "name": "transcraft_initial_pairwise_harness",
+  "version": 1,
+  "runtime_scan_paths": [
+    "src/agents",
+    "src/tie/style_contract.py",
+    "memory/works"
+  ],
+  "forbidden_runtime_phrases": [
+    "See the child.",
+    "Cocuga bakin.",
+    "Karsinizda cocuk.",
+    "Cocugu gorun."
+  ],
+  "cases": [
+    {
+      "id": "literary_fragment_001",
+      "genre": "literary",
+      "source": "He did not answer. Rain on the windows.",
+      "tie_off": "Cevap vermedi. Pencerelerde yagmur vardi.",
+      "tie_on": "Cevap vermedi. Camlarda yagmur.",
+      "expected_winner": "tie_on",
+      "reason_codes": [
+        "fragment_preservation",
+        "rhythm"
+      ]
+    },
+    {
+      "id": "technical_term_001",
+      "genre": "tech",
+      "source": "The encoder passes token embeddings to the attention layer.",
+      "tie_off": "Kodlayici belirtecleri dikkat katmanina gonderir.",
+      "tie_on": "Kodlayici token gomulmelerini dikkat katmanina aktarir.",
+      "expected_winner": "tie_on",
+      "reason_codes": [
+        "terminology_consistency"
+      ]
+    }
+  ]
+}

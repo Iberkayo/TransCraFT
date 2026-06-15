@@ -30,16 +30,23 @@ class Config:
     MINI_MODEL = os.getenv("DEFAULT_MINI_MODEL", "gpt-4o-mini")
     MAIN_MODEL = os.getenv("DEFAULT_MAIN_MODEL", "gpt-4o")
     
+    # Memory Quality
+    ENABLE_TIE_REVIEWER_LLM = os.getenv("ENABLE_TIE_REVIEWER_LLM", "false").lower() == "true"
+    
     # Reference Paths
     DATA_DIR = PROJECT_ROOT / "data"
     INPUTS_DIR = DATA_DIR / "inputs"
     REFERENCE_DIR = DATA_DIR / "reference"
+    MEMORY_DIR = PROJECT_ROOT / "memory"
+    CONFIG_DIR = DATA_DIR / "config"
+    AUTHOR_MAPPING_PATH = CONFIG_DIR / "author_mapping.json"
     
     STYLES_DIR = DATA_DIR / "styles"
     
     STYLE_GUIDE_PATH = REFERENCE_DIR / "literary" / "style_guide.txt"
     GLOSSARY_PATH = REFERENCE_DIR / "literary" / "glossary.json"
     IDIOMS_PATH = REFERENCE_DIR / "idioms_en_tr.json"
+
     
     @classmethod
     def get_genre_paths(cls, genre: str = "literary"):

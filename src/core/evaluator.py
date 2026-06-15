@@ -15,13 +15,19 @@ class EvaluationReportSchema(BaseModel):
     consistency_score: int = Field(
         description="Score from 1 (poor) to 5 (excellent) evaluating terminology consistency and stylistic coherence."
     )
+    naturalness_score: int = Field(
+        description="Score from 1 (poor) to 5 (excellent) evaluating idiomatic flow, natural rhythm, and register appropriateness."
+    )
+    terminology_adherence_score: int = Field(
+        description="Score from 1 (poor) to 5 (excellent) evaluating adherence to the glossary mappings and key terminologies."
+    )
     evaluation_summary: str = Field(
         description="A detailed 2-3 paragraph constructive review in Turkish detailing the strengths, weaknesses, and concrete recommendations for future translation runs."
     )
 
     @property
     def overall_score(self) -> float:
-        return (self.accuracy_score + self.fluency_score + self.grammar_score + self.consistency_score) / 4.0
+        return (self.accuracy_score + self.fluency_score + self.grammar_score + self.consistency_score + self.naturalness_score + self.terminology_adherence_score) / 6.0
 
 class TranslationEvaluator:
     @classmethod
@@ -50,6 +56,8 @@ You are a highly demanding bilingual quality control expert. Evaluate the transl
 2. **Fluency (Akıcılık):** Score 1-5. Does the text flow beautifully in the target language (Turkish), or does it sound like a translated/clunky text?
 3. **Grammar (İmla):** Score 1-5. Are there grammar errors, spelling mistakes, or punctuation issues?
 4. **Consistency (Tutarlılık):** Score 1-5. Are the terminology, character names, and stylistic tone consistent throughout?
+5. **Naturalness (Doğallık):** Score 1-5. Is the translation written idiomatically matching standard native expression and flow?
+6. **Terminology Adherence (Terimlere Uyum):** Score 1-5. Did it strictly follow positive glossaries and maintain term bindings?
 
 Provide a fair but strict score and compile a detailed review in Turkish containing:
 - Strengths (Çevirinin Güçlü Yanları)
@@ -65,6 +73,8 @@ Provide a fair but strict score and compile a detailed review in Turkish contain
             "fluency": result.fluency_score,
             "grammar": result.grammar_score,
             "consistency": result.consistency_score,
+            "naturalness": result.naturalness_score,
+            "terminology_adherence": result.terminology_adherence_score,
             "overall_score": result.overall_score,
             "summary": result.evaluation_summary
         }

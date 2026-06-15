@@ -19,35 +19,72 @@ Rather than executing dry, word-by-word machine translations, TransCraft orchest
 
 ---
 
+## 🏢 Enterprise Localization Features
+
+To ensure terminology consistency and publisher-level quality across large documents, TransCraft implements a robust layer of localization workflows:
+*   **Terminology Extraction Agent:** Analyzes the document *before* translation starts, identifying repeated technical terms and acronyms to create auto-glossary candidates. Features a fail-safe, regex-based fallback extraction if LLM formatting limits are hit.
+*   **Strict Glossary Hierarchy:** Enforces a rigid priority system during translation: **Positive Glossary** (User mandatory) > **Dynamic Auto-Glossary** > **Standard Glossary** > **Negative Glossary** (Forbidden terms).
+*   **Consistency Checker Agent:** A post-processing auditor that scans the *entire* translated document to ensure 100% terminology adherence, style consistency, and flags any un-translated English fragments.
+*   **Genre & Style Presets:** Decouples structural rules (genre) from linguistic flavor (style). Easily apply presets like `classic_literary`, `academic_technical`, or `publisher_editor`.
+*   **Native PDF Rendering:** Generates professional-looking PDF outputs that fully support native characters (e.g. Turkish `ş, ç, ğ`) directly from the Web UI.
+
+---
+
+## 🧠 Translation Intelligence Engine (TIE) v0.2
+
+TransCraft features a model-independent **Translation Intelligence Engine (TIE)** layer that accumulates reusable translation knowledge across runs while ensuring high memory quality and strict scope isolation.
+
+*   **Memory Layers (`memory/`):** Organized into `global/` (generic language-independent rules), `genres/` (genre-specific heuristics), `works/` (isolated character info, glossary, and style profiles), `users/` (user preferences), and `pending/` (low-confidence candidates awaiting validation).
+*   **Strict Scope Isolation:** Prevents cross-work contamination. When translating `attention_is_all_you_need`, Alice in Wonderland glossary/character details are completely excluded from the context.
+*   **Memory Reviewer Agent (`src/tie/reviewer.py`):** Filters curator candidates using rule-based prefiltering (instantly rejecting formatting/Gutenberg noise and scope mismatches) followed by optional LLM evaluation (`ENABLE_TIE_REVIEWER_LLM`). Only high-quality items are marked `active`; uncertain items are saved as `pending`.
+*   **Advanced Deduplication & Merge:** Merges duplicate rules using normalized key-matching, updating usage counts, and retaining maximum confidence/importance metrics.
+*   **Context Router:** Retrieves relevant memories using alphanumeric normalized key-matching and context length restriction (top `max_memory_items`, sorted by importance and confidence).
+*   **Handoff Generator:** Generates a reusable `translation_handoff.md` summarizing characters, active glossary, style rules, key decisions, and known pitfalls for continuing translation with other models.
+
+To run with TIE enabled:
+```bash
+python main.py --input data/inputs/literary_english.txt --enable-tie --user berkay --work blood_meridian --generate-handoff
+```
+
+---
+
 ## 🤖 The Multi-Agent Architecture
 
 ```
-                      [Input Document]
-                             │
-                             ▼
-              [ 1. Style & Culture Analyst ]
-                             │
-                             ▼
-               [ 2. First-Pass Translator ]
-                             │
-                             ▼
-                 [ 3. Cultural Stylist ] ◄─────┐
-                             │                 │ (If rejected,
-                             ▼                 │  loops back)
-                  [ 4. Translation Critic ] ───┘
-                             │
-                             ▼ (If approved)
-                  [ 5. Final Copy-Editor ]
-                             │
-                             ▼
-                      [Polished Output]
+                       [Input Document]
+                              │
+                              ▼
+                [ 0. Terminology Extractor ]
+                              │
+                              ▼
+               [ 1. Style & Culture Analyst ]
+                              │
+                              ▼
+                [ 2. First-Pass Translator ]
+                              │
+                              ▼
+                  [ 3. Cultural Stylist ] ◄─────┐
+                              │                 │ (If rejected,
+                              ▼                 │  loops back)
+                   [ 4. Translation Critic ] ───┘
+                              │
+                              ▼ (If approved)
+                   [ 5. Final Copy-Editor ]
+                              │
+                              ▼
+               [ 6. Enterprise Consistency Checker ]
+                              │
+                              ▼
+                       [Polished Output]
 ```
 
+*   **Terminology Extractor:** Pre-processes the document to generate an auto-glossary of domain-specific terminology.
 *   **Style & Culture Analyst:** Profiles the text's tone, registers idioms, and maps vocabulary.
-*   **First-Pass Translator:** Conducts literal and semantic translation preserving facts and terminology.
+*   **First-Pass Translator:** Conducts literal and semantic translation preserving facts and terminology, adhering strictly to the Glossary Hierarchy.
 *   **Cultural Stylist:** Rewrites the draft to sound completely natural in the target language.
 *   **Translation Critic:** Performs comparative analysis, audits terminology, and requests revisions if criteria aren't met.
 *   **Final Polisher:** Inspects grammar, punctuation, and format encoding.
+*   **Consistency Checker:** Audits the fully assembled text for global terminology and stylistic consistency.
 
 ---
 

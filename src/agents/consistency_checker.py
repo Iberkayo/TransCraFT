@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import List
 from langchain_openai import ChatOpenAI
 from src.core.config import Config
+from src.core.scoped_glossary import ScopedGlossaryStore
 
 class ConsistencyIssue(BaseModel):
     type: str = Field(description="Type of issue (e.g., Terminology, Formatting, Tone Shift, Untranslated)")
@@ -18,9 +19,16 @@ class GlossaryRecommendation(BaseModel):
 class ConsistencyReport(BaseModel):
     issues_found: int = Field(description="Total number of issues found")
     issues: List[ConsistencyIssue]
-    glossary_candidates: List[GlossaryRecommendation] = Field(description="Recommended terminology to add to auto_glossary_candidate.json based on this document.")
+    glossary_candidates: List[GlossaryRecommendation] = Field(description="Recommended terminology to add to the scoped runtime glossary based on this document.")
 
-def run_consistency_check(full_source: str, full_translation: str, positive_glossary: dict) -> dict:
+def run_consistency_check(
+    full_source: str,
+    full_translation: str,
+    positive_glossary: dict,
+    genre: str = "literary",
+    work_id: str | None = None,
+    user_id: str | None = None,
+) -> dict:
     """Post-processing agent to audit the full document."""
     llm = ChatOpenAI(
         api_key=Config.OPENAI_API_KEY,
@@ -61,7 +69,9 @@ Additionally, extract a list of highly repeated or important terms that should b
 
     try:
         report = structured_llm.invoke(prompt)
-        return report.dict()
+        result = report.dict()
+        _persist_glossary_candidates(result.get("glossary_candidates", []), genre, work_id, user_id)
+        return result
     except Exception as e:
         # Fallback to normalized rule-based terminology extraction
         from src.core.utils import extract_fallback_terms
@@ -91,9 +101,29 @@ Additionally, extract a list of highly repeated or important terms that should b
             except:
                 pass
                 
-        return {
+        result = {
             "issues_found": 0, 
             "issues": [], 
             "glossary_candidates": glossary_candidates, 
             "error": "Structured output failed, utilized fallback extraction."
         }
+        _persist_glossary_candidates(glossary_candidates, genre, work_id, user_id)
+        return result
+
+
+def _persist_glossary_candidates(
+    glossary_candidates: List[dict],
+    genre: str = "literary",
+    work_id: str | None = None,
+    user_id: str | None = None,
+) -> None:
+    if not glossary_candidates:
+        return
+
+    store = ScopedGlossaryStore(Config.DATA_DIR / "runtime")
+    candidate_map = {
+        item["source_term"]: item["target_term"]
+        for item in glossary_candidates
+        if item.get("source_term") and item.get("target_term")
+    }
+    store.merge(candidate_map, genre=genre, work_id=work_id, user_id=user_id)

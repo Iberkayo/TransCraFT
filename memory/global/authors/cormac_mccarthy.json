@@ -1,0 +1,16 @@
+{
+  "author_id": "cormac_mccarthy",
+  "author_name": "Cormac McCarthy",
+  "type": "author_style",
+  "attributes": {
+    "tone": "bleak, severe, epic, emotionally detached, post-apocalyptic, gothic",
+    "sentence_rhythm": "biblical cadence resembling the King James Bible, alternating rolling paratactic clauses linked by 'and' with abrupt fragmentary pulses",
+    "fragment_density": "high, heavy usage of incomplete sentence segments for atmospheric weight",
+    "language_register": "archaic, stark, theological, frontier-style, lexical choice uses old/forgotten American terms",
+    "dialogue_density": "sparse dialogue, unlabeled dialogues without quotation marks, stripped of standard punctuation",
+    "imagery_density": "high, vivid atmospheric and natural details described with clinical precision yet poetic force"
+  },
+  "inferred": false,
+  "confidence": 1.0,
+  "usage_count": 17
+}

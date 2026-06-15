@@ -79,26 +79,95 @@ You are extremely strict. If there are factual errors, omitted sentences, or maj
 
     result = structured_llm.invoke(prompt, config={"callbacks": callbacks})
     
-    # Check if we hit the revision limit - if so, override approval to true to avoid loop
     is_approved = result.is_approved
     critique = result.critique
     
+    # Check if we hit the revision limit - if so, override approval to true to avoid loop
     if revision_count >= Config.MAX_REVISIONS:
         is_approved = True
         critique = f"Max revisions reached. Overriding approval. Original critique was: {critique}"
         
+    # TIE v0.3.1 Style Consistency Critic integration
+    style_evaluation = {}
+    style_revision_count = state.get("style_revision_count", 0)
+    
+    if state.get("enable_tie", False) and state.get("work_id"):
+        try:
+            from src.tie.style_profiler import AuthorStyleProfiler
+            from src.tie.style_contract import StyleContractGenerator
+            from src.tie.style_critic import StyleConsistencyCritic
+            
+            from src.tie.author_mapping import resolve_author_for_work
+
+            work_id = state.get("work_id")
+            author_info = resolve_author_for_work(work_id)
+
+            if author_info:
+                work_key = author_info["work_key"]
+                author_id = author_info["author_id"]
+                author_name = author_info["author_name"]
+            
+                profiler = AuthorStyleProfiler(base_dir=Config.MEMORY_DIR)
+                contract_gen = StyleContractGenerator(base_dir=Config.MEMORY_DIR)
+                critic_instance = StyleConsistencyCritic()
+                
+                # Load or infer profile & contract
+                profile = profiler.load_or_infer_profile(author_id, author_name)
+                contract = contract_gen.load_or_generate_contract(work_key, profile)
+                
+                style_evaluation = critic_instance.evaluate(
+                    source_text=source_text,
+                    translated_text=stylized_translation,
+                    author_style_profile=profile,
+                    style_contract=contract,
+                    trace_id=trace_id
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to run StyleConsistencyCritic in evaluate_translation: {e}")
+            
+    # Integrate Style consistency score decisions
+    style_log_str = ""
+    if style_evaluation:
+        style_pres = style_evaluation.get("style_preservation", 5)
+        voice_cons = style_evaluation.get("voice_consistency", 5)
+        
+        style_log_str = f"\n[Style Critic Evaluation]\n" \
+                        f"- Style Preservation: {style_pres}/5\n" \
+                        f"- Rhythm Preservation: {style_evaluation.get('rhythm_preservation', 5)}/5\n" \
+                        f"- Voice Consistency: {voice_cons}/5\n" \
+                        f"- Literary Force: {style_evaluation.get('literary_force', 5)}/5\n"
+                        
+        if style_evaluation.get("issues"):
+            style_log_str += "Issues:\n" + "\n".join(f"  - {issue}" for issue in style_evaluation["issues"]) + "\n"
+        if style_evaluation.get("suggestions"):
+            style_log_str += "Suggestions:\n" + "\n".join(f"  - {sug}" for sug in style_evaluation["suggestions"]) + "\n"
+            
+        # Trigger style feedback loop if threshold is violated (score < 3)
+        # Maximum: 1 extra style revision
+        if (style_pres < 3 or voice_cons < 3) and style_revision_count < 1:
+            is_approved = False
+            style_revision_count += 1
+            critique = (critique or "") + "\n\n### Stylistic Criticism (Style Contract Non-Compliance):\n" + \
+                       "\n".join(f"- {sug}" for sug in style_evaluation.get("suggestions", []))
+            style_log_str += f"-> [REJECTED FOR STYLE] Triggers style revision loop. (Revision count: {style_revision_count})\n"
+        else:
+            style_log_str += f"-> [APPROVED / BYPASS] Style checks accepted or max style revision count reached.\n"
+            
     tracker.end_span(span, output_data={"is_approved": is_approved, "critique": critique})
 
     # Create log trace
     log_entry = {
         "agent": "Translation Critic",
         "action": f"Evaluated translation (Approved: {is_approved})",
-        "output": f"Approved: {is_approved}\nCritique: {critique}"
+        "output": f"Approved: {is_approved}\nCritique: {critique}\n{style_log_str}"
     }
     
     return {
         "is_approved": is_approved,
         "critique": critique,
-        "revision_count": revision_count + 1,  # Increment revision count
+        "revision_count": revision_count + 1,  # Increment accuracy revision count
+        "style_revision_count": style_revision_count,  # Update style revision count
         "logs": state.get("logs", []) + [log_entry]
     }
+

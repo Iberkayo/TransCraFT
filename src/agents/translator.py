@@ -43,15 +43,36 @@ def translate_draft(state: TranslationState) -> dict:
         for k, v in negative_glossary.items():
             neg_glossary_text += f"- DO NOT translate '{k}' as its standard meaning. Instead use: '{v}'\n"
 
+    compact_memory_context = state.get("compact_memory_context", "")
+    
+    # Separate terminology context from style contract context for clearer structured prompts
+    tie_context = ""
+    style_guidelines_text = ""
+    
+    if "### Style & Narrative Voice Guidelines" in compact_memory_context:
+        parts = compact_memory_context.split("### Style & Narrative Voice Guidelines")
+        term_part = parts[0].strip()
+        style_part = parts[1].strip()
+        
+        if term_part:
+            tie_context = f"\n### Translation Intelligence (Previous Decisions/Terminology):\n{term_part}\n"
+        if style_part:
+            style_guidelines_text = f"\n### High-Priority Style & Narrative Voice Guidelines (CRITICAL):\n{style_part}\n"
+    else:
+        if compact_memory_context:
+            tie_context = f"\n### Translation Intelligence (Previous Decisions/Terminology):\n{compact_memory_context}\n"
+
     prompt = f"""
 You are a high-fidelity semantic translator. Your goal is to translate the source text from {source_lang} to {target_lang} with maximum accuracy, ensuring no meaning, detail, or nuances are lost.
 
-### Rules:
+### CRITICAL INSTRUCTIONS:
 1. Translate accurately. Do not try to make it highly poetic or loose yet; focus on accuracy.
 2. Adhere strictly to the Positive Glossary. It has the HIGHEST priority.
 3. Adhere to the standard Glossary and Auto-Extracted Terminology.
 4. Obey the Negative Glossary. DO NOT use prohibited words.
-
+5. If "High-Priority Style & Narrative Voice Guidelines" are provided below, you MUST respect them in this draft. Pay close attention to author sentence rhythm, narrative tone, fragment preservation, register, and any work-specific rendering rules.
+{style_guidelines_text}
+{tie_context}
 ### Standard Glossary:
 {glossary}
 {pos_glossary_text}
@@ -62,6 +83,7 @@ You are a high-fidelity semantic translator. Your goal is to translate the sourc
 
 Provide only the translated text, with no preamble or explanations.
 """
+
     
     callbacks = []
     if trace_id:

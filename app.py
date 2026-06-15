@@ -191,7 +191,8 @@ if st.button("🚀 Start Translation", use_container_width=True):
             "previous_chunk_context": previous_chunk_context,
             "dynamic_glossary": dynamic_glossary,
             "trace_id": trace_id,
-            "chunk_index": i
+            "chunk_index": i,
+            "genre": genre
         }
 
         current_log_index = 0
@@ -272,7 +273,12 @@ if st.button("🚀 Start Translation", use_container_width=True):
     # Consistency Check
     with st.spinner("Running Enterprise Consistency Checker..."):
         from src.agents.consistency_checker import run_consistency_check
-        consistency_report = run_consistency_check(input_text, full_translation, positive_glossary)
+        consistency_report = run_consistency_check(
+            input_text,
+            full_translation,
+            positive_glossary,
+            genre=genre,
+        )
         
         if consistency_report.get("issues_found", 0) > 0:
             st.warning(f"Found {consistency_report['issues_found']} potential inconsistencies.")
@@ -281,24 +287,6 @@ if st.button("🚀 Start Translation", use_container_width=True):
                 
         if consistency_report.get("glossary_candidates"):
             st.info(f"Extracted {len(consistency_report['glossary_candidates'])} terminology recommendations.")
-            # Save candidates
-            runtime_dir = Config.DATA_DIR / "runtime"
-            runtime_dir.mkdir(parents=True, exist_ok=True)
-            candidate_path = runtime_dir / "auto_glossary_candidate.json"
-            try:
-                if candidate_path.exists():
-                    with open(candidate_path, "r", encoding="utf-8") as f:
-                        disk_candidates = json.load(f)
-                else:
-                    disk_candidates = {}
-                    
-                for rec in consistency_report["glossary_candidates"]:
-                    disk_candidates[rec["source_term"]] = rec["target_term"]
-                    
-                with open(candidate_path, "w", encoding="utf-8") as f:
-                    json.dump(disk_candidates, f, ensure_ascii=False, indent=2)
-            except Exception:
-                pass
 
     # Evaluation
     with st.spinner("Running AI Quality Evaluation..."):

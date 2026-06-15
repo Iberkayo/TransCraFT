@@ -49,16 +49,42 @@ def stylize_translation(state: TranslationState) -> dict:
         for k, v in negative_glossary.items():
             neg_glossary_text += f"- Avoid translating '{k}' as its standard meaning. DO NOT use prohibited translations. Instead use: '{v}'\n"
     
+    compact_memory_context = state.get("compact_memory_context", "")
+    
+    # Separate terminology context from style contract context for clearer structured prompts
+    tie_context = ""
+    style_guidelines_text = ""
+    
+    if "### Style & Narrative Voice Guidelines" in compact_memory_context:
+        parts = compact_memory_context.split("### Style & Narrative Voice Guidelines")
+        term_part = parts[0].strip()
+        style_part = parts[1].strip()
+        
+        if term_part:
+            tie_context = f"\n### Translation Intelligence (Previous Decisions/Terminology):\n{term_part}\n"
+        if style_part:
+            style_guidelines_text = f"\n### CRITICAL STYLE CONTRACT & VOICE DIRECTIVES (MAXIMUM PRIORITY):\n{style_part}\n"
+    else:
+        if compact_memory_context:
+            tie_context = f"\n### Translation Intelligence (Previous Decisions/Terminology):\n{compact_memory_context}\n"
+
     # Construct base prompt
     prompt = f"""
 You are a master literary editor and stylist. Your goal is to rewrite the raw draft translation to make it sound completely natural, beautiful, and authentic in the target language. It must read like it was originally written by a talented native writer in that language, while preserving all the original meanings and characters.
+
+### CRITICAL STYLE ENFORCEMENT RULES:
+1. You MUST strongly prioritize style, narrative tone preservation, voice consistency, and sentence rhythm adaptation.
+2. If the style directives specify preserving sentence fragments, coordinate clauses, or bleak atmospheric rhythm, you MUST enforce this in the Turkish text. DO NOT combine stark fragments or split sentences unless explicitly allowed.
+3. Pay close attention to any work-specific scenic, rhetorical, register, or punctuation directives supplied in the style contract.
+4. Do not insert modern Turkish conversational filler words or explanatory conjunctions (like 'çünkü', 'fakat', 'ise') to bridge coordinate paratactic clauses if the style contract forbids them.
+{style_guidelines_text}
 
 ### Source Text (For Reference):
 {source_text}
 
 ### Narrative Context from Previous Chunk (For Continuity):
 {prev_context}
-
+{tie_context}
 ### Glossaries and Terminology (Must adhere to):
 {dyn_glossary}
 {pos_glossary_text}
