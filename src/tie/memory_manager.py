@@ -100,7 +100,16 @@ class MemoryManager:
             "updated_at": now_str,
             "source_work": None,
             "source_genre": None,
-            "source_user": None
+            "source_user": None,
+            "times_loaded": 0,
+            "times_injected": 0,
+            "times_detected_in_output": 0,
+            "estimated_quality_impact_avg": 0.0,
+            "harm_score_avg": 0.0,
+            "last_effectiveness_decision": None,
+            "last_effectiveness_evidence": None,
+            "effectiveness_updated_at": None,
+            "effectiveness_sample_count": 0,
         }
         
         for k, v in defaults.items():
@@ -329,6 +338,11 @@ class MemoryManager:
 
     def get_memory_items(self, scope: str, scope_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Retrieve memory items for a specific scope."""
+        def with_source_path(items: List[Dict[str, Any]], file_path: Path) -> List[Dict[str, Any]]:
+            for item in items:
+                item.setdefault("_source_path", str(file_path))
+            return items
+
         if scope == "global":
             dest_file = self.global_dir / "rules.json"
         elif scope == "genre":
@@ -347,12 +361,149 @@ class MemoryManager:
                 return []
             combined = []
             for file_path in work_folder.glob("*.json"):
-                combined.extend(self._load_json(file_path))
+                combined.extend(with_source_path(self._load_json(file_path), file_path))
             return combined
         else:
             return []
 
-        return self._load_json(dest_file)
+        return with_source_path(self._load_json(dest_file), dest_file)
+
+    def _memory_data_files(self) -> List[Path]:
+        """Return JSON files that contain mutable memory records."""
+        files = []
+        global_rules = self.global_dir / "rules.json"
+        if global_rules.exists():
+            files.append(global_rules)
+        files.extend(sorted(self.genres_dir.glob("*.json")))
+        files.extend(sorted(self.users_dir.glob("*.json")))
+        if self.works_dir.exists():
+            for work_dir in sorted(p for p in self.works_dir.iterdir() if p.is_dir()):
+                files.extend(sorted(work_dir.glob("*.json")))
+        return files
+
+    def _update_memory_records(self, memory_ids: List[str], updater) -> int:
+        target_ids = {memory_id for memory_id in memory_ids if memory_id}
+        if not target_ids:
+            return 0
+
+        updated_count = 0
+        for file_path in self._memory_data_files():
+            items = self._load_json(file_path)
+            changed = False
+            for item in items:
+                if item.get("memory_id") in target_ids:
+                    updater(item)
+                    item["updated_at"] = datetime.datetime.now().isoformat() + "Z"
+                    changed = True
+                    updated_count += 1
+            if changed:
+                self._save_json(file_path, items)
+        return updated_count
+
+    def record_memory_loaded(self, memory_ids: List[str]) -> int:
+        """Increment load counters for memory records by id."""
+        def updater(item: Dict[str, Any]):
+            item["times_loaded"] = int(item.get("times_loaded", 0) or 0) + 1
+
+        return self._update_memory_records(memory_ids, updater)
+
+    def record_memory_injected(self, memory_ids: List[str]) -> int:
+        """Increment prompt-injection counters for memory records by id."""
+        def updater(item: Dict[str, Any]):
+            item["times_injected"] = int(item.get("times_injected", 0) or 0) + 1
+
+        return self._update_memory_records(memory_ids, updater)
+
+    def update_memory_effectiveness(self, effectiveness_records: List[Dict[str, Any]]) -> int:
+        """Persist item-level memory effectiveness metrics back into memory metadata."""
+        records_by_id = {
+            record.get("memory_id"): record
+            for record in effectiveness_records
+            if record.get("memory_id")
+        }
+
+        def updater(item: Dict[str, Any]):
+            record = records_by_id.get(item.get("memory_id"), {})
+            sample_count = int(item.get("effectiveness_sample_count", 0) or 0)
+            new_count = sample_count + 1
+            impact = float(record.get("estimated_quality_impact", 0.0) or 0.0)
+            harm = float(record.get("harm_score", 0.0) or 0.0)
+            old_impact = float(item.get("estimated_quality_impact_avg", 0.0) or 0.0)
+            old_harm = float(item.get("harm_score_avg", 0.0) or 0.0)
+
+            if record.get("detected_in_output"):
+                item["times_detected_in_output"] = int(item.get("times_detected_in_output", 0) or 0) + 1
+            item["estimated_quality_impact_avg"] = ((old_impact * sample_count) + impact) / new_count
+            item["harm_score_avg"] = ((old_harm * sample_count) + harm) / new_count
+            item["last_effectiveness_decision"] = record.get("decision")
+            item["last_effectiveness_evidence"] = record.get("evidence")
+            item["effectiveness_updated_at"] = datetime.datetime.now().isoformat() + "Z"
+            item["effectiveness_sample_count"] = new_count
+
+        return self._update_memory_records(list(records_by_id.keys()), updater)
+
+    def all_memory_items(self) -> List[Dict[str, Any]]:
+        """Return all mutable memory records across global, genre, user, and work scopes."""
+        items: List[Dict[str, Any]] = []
+        for file_path in self._memory_data_files():
+            for item in self._load_json(file_path):
+                item.setdefault("_source_path", str(file_path))
+                items.append(item)
+        return items
+
+    def get_low_value_memories(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """Return memories with low detected usage and low estimated impact."""
+        items = self.all_memory_items()
+        return sorted(
+            items,
+            key=lambda item: (
+                float(item.get("estimated_quality_impact_avg", 0.0) or 0.0),
+                int(item.get("times_detected_in_output", 0) or 0),
+                -float(item.get("harm_score_avg", 0.0) or 0.0),
+            ),
+        )[:limit]
+
+    def get_high_value_memories(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """Return memories with high estimated impact and repeated detected usage."""
+        items = self.all_memory_items()
+        return sorted(
+            items,
+            key=lambda item: (
+                float(item.get("estimated_quality_impact_avg", 0.0) or 0.0),
+                int(item.get("times_detected_in_output", 0) or 0),
+                -float(item.get("harm_score_avg", 0.0) or 0.0),
+            ),
+            reverse=True,
+        )[:limit]
+
+    def build_effectiveness_records(self) -> List[Dict[str, Any]]:
+        """Convert persisted memory metadata into report-compatible effectiveness records."""
+        records = []
+        for item in self.all_memory_items():
+            detected = int(item.get("times_detected_in_output", 0) or 0) > 0
+            records.append(
+                {
+                    "memory_id": item.get("memory_id"),
+                    "key": item.get("key"),
+                    "type": item.get("type"),
+                    "scope": item.get("scope"),
+                    "loaded": int(item.get("times_loaded", 0) or 0) > 0,
+                    "injected": int(item.get("times_injected", 0) or 0) > 0,
+                    "detected_in_output": detected,
+                    "relevance_score": 0.0,
+                    "usage_score": (
+                        int(item.get("times_detected_in_output", 0) or 0)
+                        / max(1, int(item.get("effectiveness_sample_count", 0) or 0))
+                    ),
+                    "estimated_quality_impact": float(item.get("estimated_quality_impact_avg", 0.0) or 0.0),
+                    "harm_score": float(item.get("harm_score_avg", 0.0) or 0.0),
+                    "decision": item.get("last_effectiveness_decision") or "review",
+                    "evidence": item.get("last_effectiveness_evidence") or "",
+                    "source_work": item.get("source_work"),
+                    "source_genre": item.get("source_genre"),
+                }
+            )
+        return records
 
     def write_style_profile(self, work_id: str, markdown_content: str):
         """Write custom markdown style profile for a work."""

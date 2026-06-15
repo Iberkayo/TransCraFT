@@ -32,6 +32,7 @@ class Config:
     
     # Memory Quality
     ENABLE_TIE_REVIEWER_LLM = os.getenv("ENABLE_TIE_REVIEWER_LLM", "false").lower() == "true"
+    ENABLE_MEMORY_EFFECTIVENESS_LLM = os.getenv("ENABLE_MEMORY_EFFECTIVENESS_LLM", "false").lower() == "true"
     
     # Reference Paths
     DATA_DIR = PROJECT_ROOT / "data"

@@ -49,3 +49,7 @@ class TranslationState(TypedDict):
     relevant_memories: Optional[List[Dict[str, Any]]]
     compact_memory_context: Optional[str]
     memory_provenance: Optional[List[Dict[str, Any]]]
+    loaded_memory_ids: Optional[List[str]]
+    injected_memory_ids: Optional[List[str]]
+    memory_effectiveness_records: Optional[List[Dict[str, Any]]]
+    memory_effectiveness_summary: Optional[Dict[str, Any]]
