@@ -21,3 +21,20 @@ data/outputs/progress_*
 .vscode/
 .idea/
 .gemini/
+
+# Local/private translation inputs
+data/inputs/
+
+# Runtime/generated memory artifacts
+memory/genres/
+memory/works/
+memory/global/rules.json
+
+# Runtime memory backups
+memory_backup_*/
+
+# Generated translation outputs
+data/outputs/
+
+# Generated experiment outputs
+outputs/experiments/
