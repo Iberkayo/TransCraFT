@@ -68,7 +68,6 @@ Return a dictionary where keys are the source terms and values are your proposed
             try:
                 fallback_prompt = f"Translate these terms to {target_lang}. Return ONLY a valid JSON object {{'term': 'translation'}}:\n" + str(list(extracted_dict.keys()))
                 fallback_response = llm.invoke(fallback_prompt).content
-                import json
                 cleaned = fallback_response.replace("```json", "").replace("```", "").strip()
                 extracted_dict = json.loads(cleaned)
             except:

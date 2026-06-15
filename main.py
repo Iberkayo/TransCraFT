@@ -235,7 +235,8 @@ def main():
             "genre": args.genre,
             "enable_tie": args.enable_tie,
             "relevant_memories": None,
-            "compact_memory_context": None
+            "compact_memory_context": None,
+            "style_revision_count": 0
         }
 
         current_log_index = 0

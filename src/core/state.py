@@ -24,6 +24,8 @@ class TranslationState(TypedDict):
     # Control Flags
     is_approved: bool
     revision_count: int
+    style_revision_count: Optional[int]
+
     
     # Final Output
     final_translation: Optional[str]
