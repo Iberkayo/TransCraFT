@@ -10,6 +10,8 @@ class ContextRouter:
         self.memory_manager = memory_manager or MemoryManager()
         self.last_loaded_count = 0
         self.last_used_count = 0
+        self.last_loaded_memory_ids: List[str] = []
+        self.last_injected_memory_ids: List[str] = []
         self.current_source_text = None
 
     def retrieve_relevant_memory(self, 
@@ -51,6 +53,11 @@ class ContextRouter:
             
         logger.info(f"ContextRouter loaded sources: {', '.join(loaded_sources)}")
         self.last_loaded_count = len(raw_items)
+        self.last_loaded_memory_ids = [item.get("memory_id") for item in raw_items if item.get("memory_id")]
+        try:
+            self.memory_manager.record_memory_loaded(self.last_loaded_memory_ids)
+        except Exception as e:
+            logger.warning(f"Failed to record loaded memory ids: {e}")
             
         # 5. Filter items to keep only relevant ones
         relevant_items = []
@@ -105,6 +112,11 @@ class ContextRouter:
         # 8. Limit to max_memory_items
         result = sorted_items[:max_memory_items]
         self.last_used_count = len(result)
+        self.last_injected_memory_ids = [item.get("memory_id") for item in result if item.get("memory_id")]
+        try:
+            self.memory_manager.record_memory_injected(self.last_injected_memory_ids)
+        except Exception as e:
+            logger.warning(f"Failed to record injected memory ids: {e}")
         return result
 
     def generate_compact_context(self, relevant_items: List[Dict[str, Any]], work_id: Optional[str] = None) -> str:

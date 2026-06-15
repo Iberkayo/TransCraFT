@@ -13,7 +13,10 @@ def run_context_router(state: TranslationState) -> dict:
     if not state.get("enable_tie", False):
         return {
             "compact_memory_context": "",
-            "relevant_memories": []
+            "relevant_memories": [],
+            "loaded_memory_ids": [],
+            "injected_memory_ids": [],
+            "memory_provenance": []
         }
     
     from src.tie.router import ContextRouter
@@ -42,6 +45,10 @@ def run_context_router(state: TranslationState) -> dict:
             "type": item.get("type"),
             "scope": item.get("scope"),
             "scope_id": item.get("scope_id"),
+            "confidence": item.get("confidence"),
+            "importance_score": item.get("importance_score"),
+            "source_path": item.get("_source_path"),
+            "provenance": item.get("provenance"),
         }
         for item in relevant
         if item.get("memory_id")
@@ -57,11 +64,105 @@ def run_context_router(state: TranslationState) -> dict:
     return {
         "relevant_memories": relevant,
         "compact_memory_context": compact,
+        "loaded_memory_ids": router.last_loaded_memory_ids,
+        "injected_memory_ids": router.last_injected_memory_ids,
         "memory_provenance": memory_provenance,
         "memory_loaded_count": router.last_loaded_count,
         "memory_used_count": router.last_used_count,
         "logs": state.get("logs", []) + [log_entry]
     }
+
+def run_memory_effectiveness(state: TranslationState) -> dict:
+    """Evaluate whether routed memories were reflected in the final translation."""
+    if not state.get("enable_tie", False):
+        return {}
+
+    try:
+        from src.core.config import Config
+        from src.tie.memory_manager import MemoryManager
+        from src.tie.memory_effectiveness import MemoryEffectivenessEvaluator
+
+        source_text = state.get("source_text", "")
+        final_translation = state.get("final_translation", "") or ""
+        if not final_translation:
+            for log in state.get("logs", []):
+                if log.get("agent") == "Final Polisher":
+                    final_translation = log.get("output", "")
+                    break
+
+        evaluator = MemoryEffectivenessEvaluator(
+            enable_llm=Config.ENABLE_MEMORY_EFFECTIVENESS_LLM
+        )
+        records = evaluator.evaluate_chunk(
+            source_text=source_text,
+            translated_text=final_translation,
+            loaded_memories=state.get("relevant_memories", []) or [],
+            injected_memory_ids=state.get("injected_memory_ids", []) or [],
+            genre=state.get("genre"),
+            work_id=state.get("work_id"),
+        )
+
+        manager = MemoryManager(base_dir=Config.MEMORY_DIR)
+        updated_count = manager.update_memory_effectiveness(records)
+        summary = evaluator.summarize_records(records)
+
+        trace_id = state.get("trace_id")
+        if trace_id:
+            try:
+                from src.observability.langfuse_tracker import tracker
+
+                span = tracker.create_span(
+                    trace_id,
+                    name="memory_effectiveness",
+                    metadata={
+                        "loaded_memory_ids": state.get("loaded_memory_ids", []) or [],
+                        "detected_memory_ids": [
+                            r.get("memory_id") for r in records if r.get("detected_in_output")
+                        ],
+                        "average_impact": summary["average_memory_impact"],
+                        "harm_score": summary["average_harm_score"],
+                        "decisions_summary": {
+                            "promote": summary["promoted_memory_count"],
+                            "keep": summary["kept_memory_count"],
+                            "downgrade": summary["downgraded_memory_count"],
+                            "retire": summary["retired_memory_count"],
+                            "review": summary["review_memory_count"],
+                        },
+                    },
+                )
+                tracker.end_span(span, output_data=summary)
+            except Exception:
+                pass
+
+        try:
+            from src.observability.mlflow_tracker import mlflow_tracker
+
+            mlflow_tracker.log_memory_effectiveness_metrics(summary)
+        except Exception:
+            pass
+
+        log_entry = {
+            "agent": "Memory Effectiveness",
+            "action": "Measured routed memory usage in final translation",
+            "output": (
+                f"Evaluated {len(records)} memory item(s), updated {updated_count}. "
+                f"Detected {summary['memory_detected_count']} in output. "
+                f"Average impact {summary['average_memory_impact']:.2f}, "
+                f"average harm {summary['average_harm_score']:.2f}."
+            )
+        }
+        return {
+            "memory_effectiveness_records": records,
+            "memory_effectiveness_summary": summary,
+            "logs": state.get("logs", []) + [log_entry],
+        }
+    except Exception as e:
+        log_entry = {
+            "agent": "Memory Effectiveness",
+            "action": "Skipped memory effectiveness evaluation",
+            "output": f"Fail-safe skip: {e}"
+        }
+        return {"logs": state.get("logs", []) + [log_entry]}
 
 def run_memory_curator(state: TranslationState) -> dict:
     """Extract and persist new translation decisions, terminology, and patterns."""
@@ -202,6 +303,7 @@ def create_translation_graph() -> StateGraph:
     workflow.add_node("stylist", stylize_translation)
     workflow.add_node("critic", evaluate_translation)
     workflow.add_node("polisher", polish_translation)
+    workflow.add_node("memory_effectiveness", run_memory_effectiveness)
     workflow.add_node("curator", run_memory_curator)
     
     # Define execution flow
@@ -225,7 +327,8 @@ def create_translation_graph() -> StateGraph:
     )
     
     # Final node connections
-    workflow.add_edge("polisher", "curator")
+    workflow.add_edge("polisher", "memory_effectiveness")
+    workflow.add_edge("memory_effectiveness", "curator")
     workflow.add_edge("curator", END)
     
     return workflow.compile()
