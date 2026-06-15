@@ -10,6 +10,7 @@ class ContextRouter:
         self.memory_manager = memory_manager or MemoryManager()
         self.last_loaded_count = 0
         self.last_used_count = 0
+        self.current_source_text = None
 
     def retrieve_relevant_memory(self, 
                                  source_text: str, 
@@ -21,6 +22,7 @@ class ContextRouter:
         Retrieve memory records from all relevant scopes and filter them for the given source text.
         Returns a merged list of relevant memory item dicts.
         """
+        self.current_source_text = source_text
         raw_items = []
         loaded_sources = []
         
@@ -109,71 +111,107 @@ class ContextRouter:
         """
         Format the list of relevant memory items into a compact markdown string.
         """
-        if not relevant_items:
+        if not relevant_items and not work_id:
             return ""
             
-        lines = ["### Translation Intelligence Context (Relevant Memories):"]
-        
-        # Group by type/scope to keep it clean
-        characters = []
-        terminology = []
-        phrases = []
-        rules = []
-        
-        for item in relevant_items:
-            scope = item.get("scope", "")
-            itype = item.get("type", "")
-            key = item.get("key", "")
-            val = item.get("value", "")
-            notes = item.get("notes", "")
+        lines = []
+        if relevant_items:
+            lines.append("### Translation Intelligence Context (Relevant Memories):")
             
-            # Format according to type
-            if itype == "character_info":
-                char_desc = f"'{key}' -> '{val}'"
-                if notes:
-                    char_desc += f" ({notes})"
-                characters.append(char_desc)
-            elif itype in ["terminology", "glossary"]:
-                term_desc = f"'{key}' -> '{val}'"
-                if notes:
-                    term_desc += f" ({notes})"
-                terminology.append(term_desc)
-            elif itype in ["idiom", "phrasal_verb", "correction_pattern"]:
-                phrase_desc = f"'{key}' -> '{val}'"
-                if notes:
-                    phrase_desc += f" ({notes})"
-                phrases.append(phrase_desc)
-            else:
-                rule_desc = f"[{scope.upper()}] {key or val}"
-                if key and val:
-                    rule_desc = f"[{scope.upper()}] {key}: {val}"
-                rules.append(rule_desc)
+            # Group by type/scope to keep it clean
+            characters = []
+            terminology = []
+            phrases = []
+            rules = []
+            
+            for item in relevant_items:
+                scope = item.get("scope", "")
+                itype = item.get("type", "")
+                key = item.get("key", "")
+                val = item.get("value", "")
+                notes = item.get("notes", "")
                 
-        # Build compact context blocks
-        if characters:
-            lines.append("Characters:")
-            for c in characters:
-                lines.append(f"  - {c}")
-        if terminology:
-            lines.append("Terminology:")
-            for t in terminology:
-                lines.append(f"  - {t}")
-        if phrases:
-            lines.append("Phrasal Verbs & Idioms:")
-            for p in phrases:
-                lines.append(f"  - {p}")
-        if rules:
-            lines.append("General Rules & Preferences:")
-            for r in rules:
-                lines.append(f"  - {r}")
-                
-        # Optional: Include style profile if work_id has one
+                # Format according to type
+                if itype == "character_info":
+                    char_desc = f"'{key}' -> '{val}'"
+                    if notes:
+                        char_desc += f" ({notes})"
+                    characters.append(char_desc)
+                elif itype in ["terminology", "glossary"]:
+                    term_desc = f"'{key}' -> '{val}'"
+                    if notes:
+                        term_desc += f" ({notes})"
+                    terminology.append(term_desc)
+                elif itype in ["idiom", "phrasal_verb", "correction_pattern"]:
+                    phrase_desc = f"'{key}' -> '{val}'"
+                    if notes:
+                        phrase_desc += f" ({notes})"
+                    phrases.append(phrase_desc)
+                else:
+                    rule_desc = f"[{scope.upper()}] {key or val}"
+                    if key and val:
+                        rule_desc = f"[{scope.upper()}] {key}: {val}"
+                    rules.append(rule_desc)
+                    
+            # Build compact context blocks
+            if characters:
+                lines.append("Characters:")
+                for c in characters:
+                    lines.append(f"  - {c}")
+            if terminology:
+                lines.append("Terminology:")
+                for t in terminology:
+                    lines.append(f"  - {t}")
+            if phrases:
+                lines.append("Phrasal Verbs & Idioms:")
+                for p in phrases:
+                    lines.append(f"  - {p}")
+            if rules:
+                lines.append("General Rules & Preferences:")
+                for r in rules:
+                    lines.append(f"  - {r}")
+                    
+        # TIE v0.3 Style Contract Integration
         if work_id:
-            profile = self.memory_manager.read_style_profile(work_id)
-            if profile:
-                # Add first 3 lines of style profile or summary to keep it compact
-                lines.append("Work Style Profile:")
-                summary = "\n".join(profile.splitlines()[:5])
-                lines.append(f"  {summary}")
+            try:
+                from src.tie.style_profiler import AuthorStyleProfiler
+                from src.tie.style_contract import StyleContractGenerator
+                
+                # Resolve author ID
+                mapping = {
+                    "blood_meridian": "cormac_mccarthy",
+                    "alice_in_wonderland": "lewis_carroll",
+                    "attention_is_all_you_need": "vaswani_et_al"
+                }
+                work_key = work_id.lower().strip().replace(" ", "_")
+                author_id = mapping.get(work_key, f"author_{work_key}")
+                author_name = author_id.replace("_", " ").title()
+                
+                profiler = AuthorStyleProfiler(base_dir=self.memory_manager.base_dir)
+                contract_gen = StyleContractGenerator(base_dir=self.memory_manager.base_dir)
+                
+                # Get sample chunk if available
+                sample_chunks = [self.current_source_text] if self.current_source_text else []
+                
+                profile = profiler.load_or_infer_profile(
+                    author_id=author_id,
+                    author_name=author_name,
+                    sample_chunks=sample_chunks
+                )
+                
+                contract = contract_gen.load_or_generate_contract(
+                    work_id=work_key,
+                    author_profile=profile
+                )
+                
+                if contract:
+                    lines.append("\n### Style & Narrative Voice Guidelines")
+                    lines.append(f"* **Tone**: {contract.get('tone')}")
+                    lines.append(f"* **Sentence Rhythm**: {contract.get('sentence_rhythm')}")
+                    lines.append("* **Directives**:")
+                    for rule in contract.get("rules", []):
+                        lines.append(f"  - {rule}")
+            except Exception as e:
+                logger.error(f"Error resolving style contract in ContextRouter: {e}")
                 
         return "\n".join(lines)
