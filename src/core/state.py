@@ -56,3 +56,10 @@ class TranslationState(TypedDict):
     routing_summary: Optional[Dict[str, Any]]
     memory_effectiveness_records: Optional[List[Dict[str, Any]]]
     memory_effectiveness_summary: Optional[Dict[str, Any]]
+
+    # TIE v0.6 translation strategy planning
+    translation_strategy: Optional[Dict[str, Any]]
+    language_profile: Optional[Dict[str, Any]]
+    source_language_profile: Optional[Dict[str, Any]]
+    target_language_profile: Optional[Dict[str, Any]]
+    strategy_planner_fallback_used: Optional[bool]

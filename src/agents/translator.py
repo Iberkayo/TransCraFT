@@ -2,9 +2,10 @@ from langchain_openai import ChatOpenAI
 from src.core.config import Config
 from src.core.state import TranslationState
 from src.observability.langfuse_tracker import tracker
+from src.tie.strategy_planner import build_strategy_prompt_context
 
 def translate_draft(state: TranslationState) -> dict:
-    """Perform a high-fidelity literal and semantic draft translation."""
+    """Perform a high-fidelity strategy-guided draft translation."""
     trace_id = state.get("trace_id")
     chunk_index = state.get("chunk_index")
     span = tracker.create_span(trace_id, name="translator_node", metadata={"chunk_index": chunk_index})
@@ -62,15 +63,27 @@ def translate_draft(state: TranslationState) -> dict:
         if compact_memory_context:
             tie_context = f"\n### Translation Intelligence (Previous Decisions/Terminology):\n{compact_memory_context}\n"
 
+    strategy_context = build_strategy_prompt_context(
+        state.get("translation_strategy"),
+        state.get("language_profile") or state.get("target_language_profile"),
+    )
+    if strategy_context:
+        strategy_context = f"\n{strategy_context}\n"
+
     prompt = f"""
-You are a high-fidelity semantic translator. Your goal is to translate the source text from {source_lang} to {target_lang} with maximum accuracy, ensuring no meaning, detail, or nuances are lost.
+You are a professional literary and technical translator. Translate the source text from {source_lang} to {target_lang} with full meaning preserved and natural target-language reconstruction.
 
 ### CRITICAL INSTRUCTIONS:
-1. Translate accurately. Do not try to make it highly poetic or loose yet; focus on accuracy.
-2. Adhere strictly to the Positive Glossary. It has the HIGHEST priority.
-3. Adhere to the standard Glossary and Auto-Extracted Terminology.
-4. Obey the Negative Glossary. DO NOT use prohibited words.
-5. If "High-Priority Style & Narrative Voice Guidelines" are provided below, you MUST respect them in this draft. Pay close attention to author sentence rhythm, narrative tone, fragment preservation, register, and any work-specific rendering rules.
+1. Preserve the full source meaning. Do not omit details, facts, images, or sentence-level implications.
+2. Avoid literal English word order; reconstruct naturally in Turkish when Turkish is the target language.
+3. Follow the genre, register, tone, and literalness guidance in the Translation Strategy Plan when provided.
+4. Apply target language profile rules, especially pronoun economy, natural sentence rhythm, and anti-translationese guidance.
+5. Adhere strictly to the Positive Glossary. It has the HIGHEST priority.
+6. Adhere to the standard Glossary and Auto-Extracted Terminology.
+7. Obey the Negative Glossary. DO NOT use prohibited words.
+8. Use only relevant memory context already routed into this prompt.
+9. If "High-Priority Style & Narrative Voice Guidelines" are provided below, you MUST respect them in this draft. Pay close attention to author sentence rhythm, narrative tone, fragment preservation, register, and any work-specific rendering rules.
+{strategy_context}
 {style_guidelines_text}
 {tie_context}
 ### Standard Glossary:

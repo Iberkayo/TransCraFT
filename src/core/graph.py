@@ -106,6 +106,106 @@ def run_context_router(state: TranslationState) -> dict:
         "logs": state.get("logs", []) + [log_entry]
     }
 
+def run_strategy_planner(state: TranslationState) -> dict:
+    """Build a deterministic translator strategy from language profiles and routed context."""
+    from src.core.config import Config
+    from src.tie.language_profile import LanguageProfileLoader
+    from src.tie.strategy_planner import TranslationStrategyPlanner
+
+    source_language = state.get("source_language", "English")
+    target_language = state.get("target_language", "Turkish")
+    loader = LanguageProfileLoader()
+    planner = TranslationStrategyPlanner(profile_loader=loader)
+    profile_context = planner.language_profile_context(source_language, target_language)
+    source_profile = profile_context["source_language_profile"]
+    target_profile = profile_context["target_language_profile"]
+
+    try:
+        if Config.ENABLE_TRANSLATION_STRATEGY_PLANNER:
+            strategy = planner.plan(
+                source_text=state.get("source_text", ""),
+                source_language=source_language,
+                target_language=target_language,
+                genre=state.get("genre"),
+                style=state.get("style_analysis") or state.get("style_preset"),
+                work_id=state.get("work_id"),
+                user_id=state.get("user_id"),
+                memory_context=state.get("compact_memory_context", ""),
+            )
+        else:
+            strategy = {}
+    except Exception as e:
+        strategy = planner._ensure_required_fields(planner._fallback_strategy(
+            source_text=state.get("source_text", ""),
+            source_profile=source_profile,
+            target_profile=target_profile,
+            genre=state.get("genre"),
+            style=state.get("style_preset"),
+            work_id=state.get("work_id"),
+            style_contract=None,
+            memory_context=state.get("compact_memory_context", ""),
+        ))
+        strategy["fallback_used"] = True
+        strategy["planner_error"] = str(e)
+
+    if strategy:
+        fallback_used = bool(strategy.get("fallback_used"))
+        output = (
+            f"Generated {strategy.get('text_type', 'general')} strategy for "
+            f"{strategy.get('source_language')} -> {strategy.get('target_language')}. "
+            f"Meaning units: {len(strategy.get('meaning_units', []))}. "
+            f"Structural risks: {len(strategy.get('structural_risks', []))}. "
+            f"Fallback used: {fallback_used}."
+        )
+    else:
+        fallback_used = False
+        output = "Translation strategy planner disabled; loaded language profiles only."
+
+    trace_id = state.get("trace_id")
+    if trace_id and strategy:
+        try:
+            from src.observability.langfuse_tracker import tracker
+
+            span = tracker.create_span(
+                trace_id,
+                name="translation_strategy_planner",
+                metadata={
+                    "source_language": strategy.get("source_language"),
+                    "target_language": strategy.get("target_language"),
+                    "text_type": strategy.get("text_type"),
+                    "tone": strategy.get("tone"),
+                    "register": strategy.get("register"),
+                    "literalness_level": strategy.get("literalness_level"),
+                    "structural_risks": strategy.get("structural_risks", []),
+                    "fallback_used": fallback_used,
+                },
+            )
+            tracker.end_span(span, output_data=strategy)
+        except Exception:
+            pass
+
+    try:
+        from src.observability.mlflow_tracker import mlflow_tracker
+
+        mlflow_tracker.log_strategy_planner_metrics(strategy)
+    except Exception:
+        pass
+
+    log_entry = {
+        "agent": "Strategy Planner",
+        "action": "Generated human translator strategy",
+        "output": output,
+    }
+
+    return {
+        "translation_strategy": strategy,
+        "language_profile": target_profile,
+        "source_language_profile": source_profile,
+        "target_language_profile": target_profile,
+        "strategy_planner_fallback_used": fallback_used,
+        "logs": state.get("logs", []) + [log_entry],
+    }
+
 def run_memory_effectiveness(state: TranslationState) -> dict:
     """Evaluate whether routed memories were reflected in the final translation."""
     if not state.get("enable_tie", False):
@@ -333,6 +433,7 @@ def create_translation_graph() -> StateGraph:
     workflow.add_node("router", run_context_router)
     workflow.add_node("extractor", extract_terminology)
     workflow.add_node("analyst", analyze_style_and_culture)
+    workflow.add_node("strategy_planner", run_strategy_planner)
     workflow.add_node("translator", translate_draft)
     workflow.add_node("stylist", stylize_translation)
     workflow.add_node("critic", evaluate_translation)
@@ -346,7 +447,8 @@ def create_translation_graph() -> StateGraph:
     # Connection mapping
     workflow.add_edge("router", "extractor")
     workflow.add_edge("extractor", "analyst")
-    workflow.add_edge("analyst", "translator")
+    workflow.add_edge("analyst", "strategy_planner")
+    workflow.add_edge("strategy_planner", "translator")
     workflow.add_edge("translator", "stylist")
     workflow.add_edge("stylist", "critic")
     

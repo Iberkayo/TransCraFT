@@ -81,5 +81,27 @@ class MLflowTracker:
         except Exception as e:
             print(f"Warning: Failed to log memory-aware router metrics to MLflow. Error: {e}")
 
+    def log_strategy_planner_metrics(self, strategy: Dict[str, Any]):
+        """Log strategy planner metrics without failing translation."""
+        if not self.enabled or not strategy:
+            return
+
+        try:
+            metrics = {
+                "strategy_planner_enabled": 1.0,
+                "strategy_meaning_unit_count": float(len(strategy.get("meaning_units", []) or [])),
+                "strategy_structural_risk_count": float(len(strategy.get("structural_risks", []) or [])),
+                "strategy_fallback_used": 1.0 if strategy.get("fallback_used") else 0.0,
+            }
+            params = {
+                "strategy_text_type": str(strategy.get("text_type", "")),
+                "strategy_literalness_level": str(strategy.get("literalness_level", "")),
+            }
+            with self._mlflow.start_run(run_name="translation_strategy_planner", nested=True):
+                self._mlflow.log_metrics(metrics)
+                self._mlflow.log_params(params)
+        except Exception as e:
+            print(f"Warning: Failed to log strategy planner metrics to MLflow. Error: {e}")
+
 # Create singleton
 mlflow_tracker = MLflowTracker()
