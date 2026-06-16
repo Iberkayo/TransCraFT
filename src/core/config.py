@@ -34,6 +34,7 @@ class Config:
     ENABLE_TIE_REVIEWER_LLM = os.getenv("ENABLE_TIE_REVIEWER_LLM", "false").lower() == "true"
     ENABLE_MEMORY_EFFECTIVENESS_LLM = os.getenv("ENABLE_MEMORY_EFFECTIVENESS_LLM", "false").lower() == "true"
     ENABLE_MEMORY_AWARE_ROUTER = os.getenv("ENABLE_MEMORY_AWARE_ROUTER", "true").lower() == "true"
+    ENABLE_TRANSLATION_STRATEGY_PLANNER = os.getenv("ENABLE_TRANSLATION_STRATEGY_PLANNER", "true").lower() == "true"
     
     # Reference Paths
     DATA_DIR = PROJECT_ROOT / "data"
@@ -42,6 +43,7 @@ class Config:
     MEMORY_DIR = PROJECT_ROOT / "memory"
     CONFIG_DIR = DATA_DIR / "config"
     AUTHOR_MAPPING_PATH = CONFIG_DIR / "author_mapping.json"
+    LANGUAGE_PROFILES_DIR = DATA_DIR / "language_profiles"
     
     STYLES_DIR = DATA_DIR / "styles"
     

@@ -9,7 +9,7 @@ class EvaluationSchema(BaseModel):
         description="True if the translation is beautiful, accurate, and ready for publication. False if it needs revisions."
     )
     critique: str = Field(
-        description="Constructive critique in Turkish pointing out specific issues (e.g., mistranslations, awkward wording, idiom misuse). If approved, this should be 'None'."
+        description="Constructive critique in the target language pointing out specific issues (e.g., mistranslations, awkward wording, idiom misuse). If approved, this should be 'None'."
     )
 
 def evaluate_translation(state: TranslationState) -> dict:
@@ -27,17 +27,26 @@ def evaluate_translation(state: TranslationState) -> dict:
     
     source_text = state["source_text"]
     stylized_translation = state["stylized_translation"]
+    target_lang = state.get("target_language", "target language")
     style_guide = state["style_guide"]
     positive_glossary = state.get("positive_glossary", {})
     auto_candidates = state.get("auto_glossary_candidates", {})
     negative_glossary = state.get("negative_glossary", {})
     revision_count = state.get("revision_count", 0)
+    translation_strategy = state.get("translation_strategy") or {}
+    critic_checklist = translation_strategy.get("critic_checklist") or []
 
     pos_glossary_text = ""
     if positive_glossary:
         pos_glossary_text = "\n### Positive Glossary (MUST USE):\n"
         for k, v in positive_glossary.items():
             pos_glossary_text += f"- '{k}' MUST be '{v}'\n"
+
+    checklist_text = ""
+    if critic_checklist:
+        checklist_text = "\n### Strategy Critic Checklist:\n"
+        for item in critic_checklist:
+            checklist_text += f"- {item}\n"
     
     prompt = f"""
 You are an expert bilingual critic. Your task is to evaluate the stylized translation against the source text.
@@ -59,12 +68,14 @@ You are extremely strict. If there are factual errors, omitted sentences, or maj
 
 ### Style Guide Rules:
 {style_guide}
+{checklist_text}
 
 ### Instructions:
 1. Check for **Accuracy**: Did the stylist omit any sentences or alter facts?
-2. Check for **Flow & Naturalness**: Does the Turkish version read naturally, or are there clunky phrasing issues?
+2. Check for **Flow & Naturalness**: Does the {target_lang} version read naturally, or are there clunky phrasing issues?
 3. Check for **Idioms**: Were the idioms adapted appropriately, or did they get translated literally?
-4. **Approval Logic**: If there are noticeable flow issues or errors, set `is_approved` to False and write a detailed constructive critique. If it is already high quality and ready to publish, set `is_approved` to True.
+4. Check strategy compliance: unnecessary pronouns, translationese patterns, heavy relative-clause chains, register, terminology, style, and rhythm.
+5. **Approval Logic**: If there are noticeable flow issues or errors, set `is_approved` to False and write a detailed constructive critique. If it is already high quality and ready to publish, set `is_approved` to True.
 
 *Note: If this is Revision #{Config.MAX_REVISIONS}, be slightly more lenient to prevent infinite loops, and only reject if there are severe factual errors.*
 """

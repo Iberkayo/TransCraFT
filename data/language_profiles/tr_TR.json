@@ -1,0 +1,64 @@
+{
+  "language_code": "tr_TR",
+  "name": "Turkish (Turkey)",
+  "family": "Turkic",
+  "default_register": "natural_modern_turkish",
+  "core_rules": [
+    "Turkish generally prefers SOV order, but natural rhythm is more important than mechanical word order.",
+    "Drop pronouns when the verb ending or context already marks the subject.",
+    "Avoid literal transfer of English relative clauses.",
+    "Avoid unnecessary 'o', 'onun', and 'bu' pronouns.",
+    "Unpack English noun stacks into natural Turkish phrases.",
+    "Adapt passive voice depending on genre and target register.",
+    "Convert English prepositions into Turkish case suffixes, postpositions, or natural verbs.",
+    "Prefer natural Turkish sentence rhythm.",
+    "Split long English sentences when Turkish readability improves.",
+    "Preserve literary fragments when the style requires sparse rhythm."
+  ],
+  "translationese_patterns_to_avoid": [
+    "neden oldu",
+    "merak etmesine neden oldu",
+    "olan/eden/yapan chains",
+    "overly long Turkish participle structures",
+    "literal English SVO transfer",
+    "unnecessary possessive pronoun repetition"
+  ],
+  "reconstruction_notes": [
+    "avoid literal English word order",
+    "drop unnecessary pronouns when Turkish morphology or context is enough",
+    "reconstruct meaning naturally in Turkish before final wording"
+  ],
+  "critic_checklist": [
+    "Turkish naturalness",
+    "unnecessary pronouns avoided",
+    "translationese patterns avoided",
+    "long relative clause chains avoided"
+  ],
+  "genre_preferences": {
+    "literary": [
+      "Preserve rhythm, imagery, and intentional fragments.",
+      "Avoid over-explaining the source.",
+      "Prefer vivid but controlled Turkish phrasing."
+    ],
+    "tech": [
+      "Prioritize terminology consistency and clarity.",
+      "Keep technical terms stable across chunks.",
+      "Use concise academic Turkish."
+    ],
+    "academic": [
+      "Use formal but readable Turkish.",
+      "Split long sentences when clarity improves.",
+      "Preserve definitions, claims, and citations."
+    ],
+    "business": [
+      "Use natural formal Turkish.",
+      "Prefer direct, clear sentence structure.",
+      "Avoid stiff literal phrasing."
+    ],
+    "general": [
+      "Translate meaning naturally.",
+      "Avoid unnecessary literalness.",
+      "Keep sentences readable."
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "language_code": "en_US",
+  "name": "English (US)",
+  "family": "Germanic",
+  "default_register": "neutral",
+  "source_characteristics": [
+    "English often uses explicit subjects and pronouns.",
+    "English favors SVO word order.",
+    "English commonly uses prepositions where Turkish uses case suffixes or natural verbs.",
+    "English noun stacks often need unpacking before translation."
+  ],
+  "translation_notes": [
+    "Identify meaning units before translating.",
+    "Avoid copying English word order when it creates Turkish translationese.",
+    "Watch relative clauses and long noun phrases before reconstructing in Turkish."
+  ]
+}

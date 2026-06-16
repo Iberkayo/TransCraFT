@@ -24,6 +24,7 @@ def test_graph_compilation():
     assert graph is not None
     # Verify nodes are added
     assert "analyst" in graph.nodes
+    assert "strategy_planner" in graph.nodes
     assert "translator" in graph.nodes
     assert "stylist" in graph.nodes
     assert "critic" in graph.nodes
@@ -39,6 +40,8 @@ def test_state_structure():
     assert "is_approved" in state_keys
     assert "previous_chunk_context" in state_keys
     assert "dynamic_glossary" in state_keys
+    assert "translation_strategy" in state_keys
+    assert "language_profile" in state_keys
 
 def test_document_processor_smart_chunking():
     """Test smart chunking logic."""
