@@ -248,6 +248,16 @@ def translate_chunks(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if naturalness_result["recommendation"] == "reject" and gate["recommendation"] == "accept":
             gate["recommendation"] = "review"
 
+        # v0.9.4 literary feedback
+        from src.tie.literary_feedback import LiterarySuggestionGenerator
+        feedback_gen = LiterarySuggestionGenerator()
+        feedback_result = feedback_gen.generate_suggestions(
+            source_text=chunk["source_text"],
+            translated_text=final_text,
+        )
+        if feedback_result["recommendation"] == "review" and gate["recommendation"] == "accept":
+            gate["recommendation"] = "review"
+
         record = {
             "chunk_id": chunk_id,
             "source_pages": chunk["source_pages"],
@@ -267,6 +277,8 @@ def translate_chunks(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "foreign_residues": residue_after["residues"],
             "semantic_qa_flags": semantic_qa["flags"],
             "fluency_qa_flags": fluency_qa["flags"],
+            "literary_feedback_suggestions": feedback_result["suggestions"],
+            "feedback_suggestion_count": feedback_result["suggestion_count"],
             "quality_gate": gate,
             "recommendation": gate["recommendation"],
         }
@@ -436,12 +448,23 @@ def write_outputs(
                 "",
                 f"`{chunk['fluency_qa_flags']}`",
                 "",
-                "### Reviewer notes",
-                "",
-                "_Check literary rhythm, meaning, and proper noun handling._",
+        "### Literary feedback suggestions",
                 "",
             ]
         )
+        feedback = chunk.get("literary_feedback_suggestions", [])
+        if feedback:
+            for s in feedback:
+                review_lines.append(f"- **{s.get('correction_id')}**: `{s.get('current_target', '')}` → `{s.get('suggested_target', '')}` [{s.get('severity')}] — {s.get('reason', '')}")
+        else:
+            review_lines.append("_No literary feedback suggestions._")
+        review_lines.extend([
+            "",
+            "### Reviewer notes",
+            "",
+            "_Check literary rhythm, meaning, and proper noun handling._",
+            "",
+        ])
     review_path.write_text("\n".join(review_lines), encoding="utf-8")
 
     metadata_chunks = [
@@ -482,6 +505,41 @@ def write_outputs(
         },
         "chunks": metadata_chunks,
     }
+    # v0.9.4 hotfix: write suggested edits file
+    from src.tie.literary_feedback import write_suggested_edits_file
+    suggested_edits_path = OUTPUTS_DIR / "blood_meridian_first5_suggested_edits.md"
+    suggestions_data = [
+        {
+            "chunk_id": chunk.get("chunk_id", ""),
+            "feedback_suggestion_count": chunk.get("feedback_suggestion_count", 0),
+            "literary_feedback_suggestions": chunk.get("literary_feedback_suggestions", []),
+        }
+        for chunk in translated_chunks
+    ]
+    write_suggested_edits_file(suggested_edits_path, suggestions_data)
+
+    metadata_chunks = [
+        {
+            "chunk_id": chunk["chunk_id"],
+            "source_pages": chunk["source_pages"],
+            "boundary_flags": chunk["boundary_flags"],
+            "source_quality_score": chunk["source_quality_score"],
+            "source_repairs": chunk["source_repairs"],
+            "strategy_used": chunk["strategy_used"],
+            "revision_checklist_used": chunk["revision_checklist_used"],
+            "target_naturalness_used": chunk["target_naturalness_used"],
+            "foreign_residue_count_before_final": chunk["foreign_residue_count_before_final"],
+            "foreign_residue_count_after_final": chunk["foreign_residue_count_after_final"],
+            "foreign_residues": chunk["foreign_residues"],
+            "semantic_qa_flags": chunk["semantic_qa_flags"],
+            "fluency_qa_flags": chunk["fluency_qa_flags"],
+            "literary_feedback_suggestions": chunk.get("literary_feedback_suggestions", []),
+            "feedback_suggestion_count": chunk.get("feedback_suggestion_count", 0),
+            "quality_gate": chunk["quality_gate"],
+            "recommendation": chunk["recommendation"],
+        }
+        for chunk in translated_chunks
+    ]
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
 
     accepted = sum(chunk["recommendation"] == "accept" for chunk in translated_chunks)
