@@ -51,5 +51,8 @@ class TranslationState(TypedDict):
     memory_provenance: Optional[List[Dict[str, Any]]]
     loaded_memory_ids: Optional[List[str]]
     injected_memory_ids: Optional[List[str]]
+    skipped_memory_ids: Optional[List[str]]
+    routing_decisions: Optional[List[Dict[str, Any]]]
+    routing_summary: Optional[Dict[str, Any]]
     memory_effectiveness_records: Optional[List[Dict[str, Any]]]
     memory_effectiveness_summary: Optional[Dict[str, Any]]
