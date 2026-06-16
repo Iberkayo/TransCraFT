@@ -1,0 +1,28 @@
+[
+  {
+    "case_id": "business_relative_clause_001",
+    "reviewer": "Berkay",
+    "preferred_output": "full_chain",
+    "naturalness_winner": "full_chain",
+    "meaning_preservation_winner": "tie",
+    "least_translationese": "full_chain",
+    "over_editing_detected": false,
+    "protected_term_issue": false,
+    "notes": "Full chain split the sentence naturally. Strategy-only also good. Baseline has merak etmesine neden oldu.",
+    "error_tags": ["translationese"],
+    "severity": "minor"
+  },
+  {
+    "case_id": "literary_fragments_001",
+    "reviewer": "Berkay",
+    "preferred_output": "tie",
+    "naturalness_winner": "tie",
+    "meaning_preservation_winner": "tie",
+    "least_translationese": "tie",
+    "over_editing_detected": false,
+    "protected_term_issue": false,
+    "notes": "All three outputs identical. No room for improvement on this simple case.",
+    "error_tags": ["no_clear_difference"],
+    "severity": "none"
+  }
+]
