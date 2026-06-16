@@ -1,0 +1,92 @@
+[
+  {
+    "id": "business_relative_clause_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The legacy software is expected to be phased out by the end of Q3, a decision which has left many departments wondering how their daily operations will be affected.",
+    "risk_type": ["relative_clause", "translationese", "sentence_splitting"],
+    "expected_improvement": "Strategy ON should split the sentence and avoid literal English clause order."
+  },
+  {
+    "id": "noun_stack_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The customer data privacy compliance monitoring system needs to be updated before the audit.",
+    "risk_type": ["noun_stack", "terminology", "clarity"],
+    "expected_improvement": "Strategy ON should unpack the noun stack into clear Turkish."
+  },
+  {
+    "id": "passive_voice_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The report was reviewed by the committee and was approved after several minor revisions.",
+    "risk_type": ["passive_voice", "formal_register"],
+    "expected_improvement": "Strategy ON should choose a natural formal Turkish passive or active structure."
+  },
+  {
+    "id": "phrasal_verb_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The support team will follow up with each regional office after the migration is complete.",
+    "risk_type": ["phrasal_verb", "business_register"],
+    "expected_improvement": "Strategy ON should avoid literal phrasal-verb transfer and use natural corporate Turkish."
+  },
+  {
+    "id": "corporate_sentence_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "Management wants the rollout to be completed quickly, but not at the expense of customer trust.",
+    "risk_type": ["corporate_sentence", "idiomatic_balance"],
+    "expected_improvement": "Strategy ON should preserve the contrast and avoid stiff corporate wording."
+  },
+  {
+    "id": "academic_abstract_001",
+    "genre": "academic",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "This study examines how remote collaboration affects decision quality in distributed engineering teams.",
+    "risk_type": ["academic_abstract", "terminology", "naturalness"],
+    "expected_improvement": "Strategy ON should keep the academic claim precise and readable."
+  },
+  {
+    "id": "literary_fragments_001",
+    "genre": "literary",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "He stood at the door. Silent. Waiting.",
+    "risk_type": ["literary_short_sentence", "fragment_preservation", "rhythm"],
+    "expected_improvement": "Strategy ON should preserve fragments and avoid over-explaining."
+  },
+  {
+    "id": "idiom_metaphor_001",
+    "genre": "general",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The announcement threw cold water on the team's optimism.",
+    "risk_type": ["idiom", "metaphor", "literalness"],
+    "expected_improvement": "Strategy ON should avoid literal wording and preserve the meaning of the idiom."
+  },
+  {
+    "id": "pronoun_heavy_001",
+    "genre": "general",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "She told him that she would send him the file when she finished reviewing it.",
+    "risk_type": ["pronoun_heavy", "ambiguity", "naturalness"],
+    "expected_improvement": "Strategy ON should reduce unnecessary pronouns without losing reference clarity."
+  },
+  {
+    "id": "preposition_heavy_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The update from the finance team about the delay in the payment process arrived after the meeting.",
+    "risk_type": ["preposition_heavy", "noun_stack", "sentence_reconstruction"],
+    "expected_improvement": "Strategy ON should unpack prepositional phrases into natural Turkish order."
+  }
+]
