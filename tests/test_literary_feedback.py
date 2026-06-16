@@ -81,3 +81,57 @@ def test_report_contains_no_overclaiming():
         text = output.read_text(encoding="utf-8").casefold()
         assert "human review" in text
         assert "do not auto-apply" in text
+
+
+def test_first5_suggested_edits_file_creates_file_with_suggestions():
+    from src.tie.literary_feedback import write_suggested_edits_file
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        output = tmp_path / "suggested_edits.md"
+        chunks = [{
+            "chunk_id": "test_001",
+            "feedback_suggestion_count": 2,
+            "literary_feedback_suggestions": [
+                {"correction_id": "c1", "source_phrase": "test", "current_target": "bad", "suggested_target": "good", "severity": "major", "reason": "test reason", "apply_mode": "suggest_only"},
+                {"correction_id": "c2", "source_phrase": "test2", "current_target": "bad2", "suggested_target": "good2", "severity": "minor", "reason": "test reason 2", "apply_mode": "suggest_only"},
+            ],
+        }]
+        result = write_suggested_edits_file(output, chunks)
+        assert result.exists()
+        text = result.read_text(encoding="utf-8")
+        assert "c1" in text
+        assert "c2" in text
+        assert "accept / reject / modify" in text
+
+
+def test_first5_suggested_edits_file_creates_file_when_no_suggestions():
+    from src.tie.literary_feedback import write_suggested_edits_file
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        output = tmp_path / "suggested_edits.md"
+        chunks = [{"chunk_id": "test_001", "feedback_suggestion_count": 0, "literary_feedback_suggestions": []}]
+        result = write_suggested_edits_file(output, chunks)
+        assert result.exists()
+        text = result.read_text(encoding="utf-8")
+        assert "No literary feedback suggestions were generated" in text
+
+
+def test_suggested_edits_file_contains_reviewer_decision_placeholders():
+    from src.tie.literary_feedback import write_suggested_edits_file
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        output = tmp_path / "suggested_edits.md"
+        chunks = [{
+            "chunk_id": "test_001",
+            "feedback_suggestion_count": 1,
+            "literary_feedback_suggestions": [
+                {"correction_id": "c1", "source_phrase": "test", "current_target": "bad", "suggested_target": "good", "severity": "major", "reason": "test", "apply_mode": "suggest_only"},
+            ],
+        }]
+        result = write_suggested_edits_file(output, chunks)
+        text = result.read_text(encoding="utf-8")
+        assert "Reviewer decision:" in text
+        assert "Reviewer notes:" in text

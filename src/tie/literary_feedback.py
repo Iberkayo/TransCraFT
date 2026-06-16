@@ -143,3 +143,55 @@ class LiterarySuggestionGenerator:
 
 def _cell(text: str) -> str:
     return text.replace("|", "\\|").replace("\n", " ")
+
+
+def write_suggested_edits_file(output_path: Path, suggestions_by_chunk: List[Dict[str, Any]]) -> Path:
+    """Write the suggested edits markdown file. Always creates the file, even with zero suggestions."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    total_suggestions = sum(chunk.get("feedback_suggestion_count", 0) for chunk in suggestions_by_chunk)
+    lines = ["# Blood Meridian First 5 Pages — Suggested Edits (Human Review Required)", ""]
+
+    if total_suggestions == 0:
+        lines.append("No literary feedback suggestions were generated.")
+        lines.append("")
+        output_path.write_text("\n".join(lines), encoding="utf-8")
+        return output_path
+
+    lines.append("This is human correction feedback infrastructure, not automatic proof of literary quality.")
+    lines.append("Suggestions require human review before application. Do not auto-apply.")
+    lines.append("")
+
+    for chunk in suggestions_by_chunk:
+        suggestions = chunk.get("literary_feedback_suggestions", [])
+        if not suggestions:
+            continue
+        lines.append(f"## Chunk: {chunk.get('chunk_id', 'unknown')}")
+        lines.append("")
+        for s in suggestions:
+            lines.extend([
+                f"### {s.get('correction_id', '?')}",
+                "",
+                f"- **Source phrase:** {_cell(s.get('source_phrase', ''))}",
+                f"- **Current target:** {_cell(s.get('current_target', ''))}",
+                f"- **Suggested target:** {_cell(s.get('suggested_target', ''))}",
+                f"- **Severity:** {s.get('severity', '?')}",
+                f"- **Reason:** {_cell(s.get('reason', ''))}",
+                f"- **Apply mode:** {s.get('apply_mode', 'suggest_only')}",
+                f"- **Reviewer decision:** accept / reject / modify",
+                f"- **Reviewer notes:**",
+                "",
+            ])
+
+    lines.append("## Summary")
+    lines.append(f"- Total suggestions: {total_suggestions}")
+    lines.append("")
+    lines.append("## Instructions")
+    lines.append("For each suggestion, mark your decision:")
+    lines.append("- **accept** — apply the suggested target")
+    lines.append("- **reject** — keep the current target unchanged")
+    lines.append("- **modify** — write your own alternative in the notes")
+    lines.append("")
+
+    output_path.write_text("\n".join(lines), encoding="utf-8")
+    return output_path
