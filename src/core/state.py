@@ -63,3 +63,8 @@ class TranslationState(TypedDict):
     source_language_profile: Optional[Dict[str, Any]]
     target_language_profile: Optional[Dict[str, Any]]
     strategy_planner_fallback_used: Optional[bool]
+
+    # TIE v0.7 human translator revision checklist
+    revision_checklist: Optional[Dict[str, Any]]
+    revision_evaluation: Optional[Dict[str, Any]]
+    revision_recommendations: Optional[List[str]]

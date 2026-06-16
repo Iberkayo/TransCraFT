@@ -47,6 +47,14 @@ def evaluate_translation(state: TranslationState) -> dict:
         checklist_text = "\n### Strategy Critic Checklist:\n"
         for item in critic_checklist:
             checklist_text += f"- {item}\n"
+
+    # TIE v0.7: merge revision checklist items into critic checklist
+    revision_checklist = state.get("revision_checklist") or {}
+    revision_checks = revision_checklist.get("checks", [])
+    if revision_checks:
+        checklist_text += "\n### Professional Revision Checklist (v0.7):\n"
+        for check in revision_checks:
+            checklist_text += f"- [{check.get('severity', 'medium').upper()}] {check.get('question', '')}\n"
     
     prompt = f"""
 You are an expert bilingual critic. Your task is to evaluate the stylized translation against the source text.
