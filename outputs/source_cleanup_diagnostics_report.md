@@ -14,6 +14,8 @@ Synthetic diagnostics for PDF extraction cleanup. The cleaner performs conservat
 He stokesthe scullery fire. Outside lie dark fields with darker woodsbeyond.
 ```
 
+- Expected: `n/a`
+
 **Cleaned**
 
 ```text
@@ -34,6 +36,8 @@ He stokes the scullery fire. Outside lie dark fields with darker woods beyond.
 The boy watches him.He waits,he listens.
 ```
 
+- Expected: `n/a`
+
 **Cleaned**
 
 ```text
@@ -53,6 +57,8 @@ The boy watches him. He waits, he listens.
 ```text
 This unknownmergedtoken should be flagged rather than guessed.
 ```
+
+- Expected: `n/a`
 
 **Cleaned**
 
@@ -75,6 +81,8 @@ The rider crossed the moun-
 tain road and kept going.
 ```
 
+- Expected: `n/a`
+
 **Cleaned**
 
 ```text
@@ -87,8 +95,98 @@ The rider crossed the mountain road and kept going.
 - Quality flags: `[]`
 - Quality recommendation: `accept`
 
+### split_initial_letter
+
+**Input**
+
+```text
+S ee the child.
+```
+
+- Expected: `See the child.`
+
+**Cleaned**
+
+```text
+See the child.
+```
+
+- Repairs: `[{'type': 'split_initial_letter_repair', 'before': 'S ee', 'after': 'See', 'confidence': 'high'}]`
+- Cleanup recommendation: `accept`
+- Quality score: `1.0`
+- Quality flags: `[]`
+- Quality recommendation: `accept`
+
+### split_initial_now
+
+**Input**
+
+```text
+N ow come days of begging.
+```
+
+- Expected: `Now come days of begging.`
+
+**Cleaned**
+
+```text
+Now come days of begging.
+```
+
+- Repairs: `[{'type': 'split_initial_letter_repair', 'before': 'N ow', 'after': 'Now', 'confidence': 'high'}]`
+- Cleanup recommendation: `accept`
+- Quality score: `1.0`
+- Quality flags: `[]`
+- Quality recommendation: `accept`
+
+### invisible_word_split
+
+**Input**
+
+```text
+Neigh​bor, you caint get shed of him.
+```
+
+- Expected: `Neighbor, you caint get shed of him.`
+
+**Cleaned**
+
+```text
+Neighbor, you caint get shed of him.
+```
+
+- Repairs: `[{'type': 'invisible_word_split_repair', 'before': 'Neigh\u200bbor', 'after': 'Neighbor', 'confidence': 'medium'}]`
+- Cleanup recommendation: `accept`
+- Quality score: `1.0`
+- Quality flags: `[]`
+- Quality recommendation: `accept`
+
+### word_internal_split
+
+**Input**
+
+```text
+from his cloth​ing
+```
+
+- Expected: `from his clothing`
+
+**Cleaned**
+
+```text
+from his clothing
+```
+
+- Repairs: `[{'type': 'invisible_word_split_repair', 'before': 'cloth\u200bing', 'after': 'clothing', 'confidence': 'medium'}]`
+- Cleanup recommendation: `accept`
+- Quality score: `1.0`
+- Quality flags: `[]`
+- Quality recommendation: `accept`
+
 ## Limitations
 
 - The repair map is intentionally small.
+- Split initial-letter repair is limited to explicit high-confidence forms such as `S ee` and `N ow`.
+- Invisible separators inside alphabetic tokens are joined, but semantic word-boundary questions still require review.
 - Uncertain merged words are flagged instead of guessed.
 - Diagnostics use synthetic examples; chapter extraction still requires boundary review.

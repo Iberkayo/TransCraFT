@@ -28,6 +28,21 @@ REPAIR_MAP = {
     "kitchenhouse": "kitchen house",
 }
 
+SPLIT_INITIAL_REPAIR_MAP = {
+    "S ee": "See",
+    "N ow": "Now",
+}
+
+INVISIBLE_SEPARATORS = [
+    "\u200b",  # zero-width space
+    "\u200c",  # zero-width non-joiner
+    "\ufeff",  # byte-order mark / zero-width no-break space
+    "\u00ad",  # soft hyphen
+    "â€‹",  # mojibake rendering of zero-width space
+    "â€Œ",  # mojibake rendering of zero-width non-joiner
+    "Â­",  # mojibake rendering of soft hyphen
+]
+
 COMMON_LONG_WORDS = {
     "circumstances",
     "nevertheless",
@@ -59,9 +74,11 @@ class SourceExtractionCleaner:
         repairs: List[Repair] = []
 
         cleaned = self._repair_hyphenation(cleaned, repairs)
+        cleaned = self._normalize_paragraph_spacing(cleaned, repairs)
+        cleaned = self._repair_invisible_word_splits(cleaned, repairs)
+        cleaned = self._repair_split_initial_letters(cleaned, repairs)
         cleaned = self._apply_repair_map(cleaned, repairs)
         cleaned = self._repair_punctuation_spacing(cleaned, repairs)
-        cleaned = self._normalize_paragraph_spacing(cleaned, repairs)
 
         flags = self._quality_flags(cleaned)
         recommendation = self._recommendation(flags)
@@ -93,6 +110,47 @@ class SourceExtractionCleaner:
                     }
                 )
         return cleaned
+
+    def _repair_split_initial_letters(self, text: str, repairs: List[Repair]) -> str:
+        cleaned = text
+        for before, after in SPLIT_INITIAL_REPAIR_MAP.items():
+            pattern = re.compile(rf"\b{re.escape(before)}\b")
+            matches = list(pattern.finditer(cleaned))
+            if not matches:
+                continue
+            cleaned = pattern.sub(after, cleaned)
+            for _ in matches:
+                repairs.append(
+                    {
+                        "type": "split_initial_letter_repair",
+                        "before": before,
+                        "after": after,
+                        "confidence": "high",
+                    }
+                )
+        return cleaned
+
+    def _repair_invisible_word_splits(self, text: str, repairs: List[Repair]) -> str:
+        separator_pattern = "|".join(re.escape(separator) for separator in INVISIBLE_SEPARATORS)
+        pattern = re.compile(rf"\b([A-Za-z]{{2,}})\s*(?:{separator_pattern})\s*([A-Za-z]{{2,}})\b")
+        matches = list(pattern.finditer(text))
+        if not matches:
+            return text
+
+        def replace(match: re.Match[str]) -> str:
+            before = match.group(0)
+            after = f"{match.group(1)}{match.group(2)}"
+            repairs.append(
+                {
+                    "type": "invisible_word_split_repair",
+                    "before": before,
+                    "after": after,
+                    "confidence": "medium",
+                }
+            )
+            return after
+
+        return pattern.sub(replace, text)
 
     def _repair_punctuation_spacing(self, text: str, repairs: List[Repair]) -> str:
         pattern = re.compile(r"([.!?,;:])(?=[A-Za-z])")
@@ -176,6 +234,26 @@ class SourceExtractionCleaner:
                 }
             )
 
+        split_letter_artifacts = split_letter_artifacts_in(text)
+        for artifact in split_letter_artifacts:
+            flags.append(
+                {
+                    "type": "split_letter_artifact",
+                    "evidence": artifact,
+                    "recommendation": "repair or review source extraction",
+                }
+            )
+
+        invisible_artifacts = invisible_word_split_artifacts_in(text)
+        for artifact in invisible_artifacts:
+            flags.append(
+                {
+                    "type": "invisible_word_split_artifact",
+                    "evidence": artifact,
+                    "recommendation": "repair or review source extraction",
+                }
+            )
+
         if looks_truncated(text):
             flags.append(
                 {
@@ -191,7 +269,10 @@ class SourceExtractionCleaner:
     def _recommendation(flags: List[Flag]) -> str:
         if any(flag["type"] == "abrupt_truncation" for flag in flags):
             return "reject"
-        if len(flags) >= 3 or any(flag["type"] == "suspected_merged_token" for flag in flags):
+        if len(flags) >= 3 or any(
+            flag["type"] in {"suspected_merged_token", "split_letter_artifact", "invisible_word_split_artifact"}
+            for flag in flags
+        ):
             return "review"
         return "accept"
 
@@ -241,6 +322,28 @@ class SourceExtractionQualityChecker:
                     "count": len(missing_spaces),
                     "evidence": missing_spaces[:10],
                     "recommendation": "run source cleanup",
+                }
+            )
+
+        split_letter_artifacts = split_letter_artifacts_in(value)
+        if split_letter_artifacts:
+            flags.append(
+                {
+                    "type": "split_letter_artifact",
+                    "count": len(split_letter_artifacts),
+                    "evidence": split_letter_artifacts[:10],
+                    "recommendation": "repair or review source extraction",
+                }
+            )
+
+        invisible_artifacts = invisible_word_split_artifacts_in(value)
+        if invisible_artifacts:
+            flags.append(
+                {
+                    "type": "invisible_word_split_artifact",
+                    "count": len(invisible_artifacts),
+                    "evidence": invisible_artifacts[:10],
+                    "recommendation": "repair or review source extraction",
                 }
             )
 
@@ -307,6 +410,29 @@ def repeated_suspicious_tokens(tokens: List[str]) -> List[str]:
     return [token for token, count in counts.items() if count > 1]
 
 
+def split_letter_artifacts_in(text: str) -> List[str]:
+    value = text or ""
+    known_patterns = [
+        rf"\b{re.escape(before)}\b"
+        for before in SPLIT_INITIAL_REPAIR_MAP
+    ]
+    # Conservative generic fallback: a paragraph/sentence starts with a split
+    # capital initial that is not a valid one-letter English word.
+    known_patterns.append(r"(?m)(?:^|(?<=[.!?]\s)|(?<=\n\n))\s*([B-HJ-Z])\s+[a-z]{2,}\b")
+    artifacts: List[str] = []
+    for pattern in known_patterns:
+        for match in re.finditer(pattern, value):
+            artifacts.append(match.group(0).strip())
+    return list(dict.fromkeys(artifacts))
+
+
+def invisible_word_split_artifacts_in(text: str) -> List[str]:
+    value = text or ""
+    separator_pattern = "|".join(re.escape(separator) for separator in INVISIBLE_SEPARATORS)
+    pattern = re.compile(rf"\b[A-Za-z]{{2,}}\s*(?:{separator_pattern})\s*[A-Za-z]{{2,}}\b")
+    return list(dict.fromkeys(match.group(0) for match in pattern.finditer(value)))
+
+
 def looks_truncated(text: str) -> bool:
     stripped = (text or "").strip()
     if not stripped:
@@ -330,7 +456,12 @@ def quality_score(text: str, flags: List[Flag]) -> float:
         count = int(flag.get("count", 1) or 1)
         if flag_type == "abrupt_truncation":
             penalty += 0.35
-        elif flag_type in {"suspicious_long_lowercase_tokens", "unusual_camel_case_join"}:
+        elif flag_type in {
+            "suspicious_long_lowercase_tokens",
+            "unusual_camel_case_join",
+            "split_letter_artifact",
+            "invisible_word_split_artifact",
+        }:
             penalty += min(0.25, 0.06 * count)
         elif flag_type == "missing_spaces_after_punctuation":
             penalty += min(0.18, 0.03 * count)

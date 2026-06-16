@@ -369,7 +369,7 @@ def chunk_record(chapter_id: str, units: List[str], chapter: Dict[str, Any]) -> 
         "chapter": chapter_id,
         "source_text": "\n\n".join(units).strip(),
         "source_pages": chapter["source_pages"],
-        "source_repairs": chapter["cleanup"]["repairs"],
+        "source_repairs": summarize_repairs(chapter["cleanup"]["repairs"]),
         "source_quality": chapter["quality"],
     }
 
@@ -434,6 +434,20 @@ def summarize_previous_context(text: str) -> str:
     return compact[-700:] if len(compact) > 700 else compact
 
 
+def summarize_repairs(repairs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    summarized = []
+    for repair in repairs:
+        item = {
+            "type": repair.get("type"),
+            "after": repair.get("after"),
+            "confidence": repair.get("confidence"),
+        }
+        if repair.get("count") is not None:
+            item["count"] = repair.get("count")
+        summarized.append(item)
+    return summarized
+
+
 def write_source_extract(
     pdf_path: Path,
     cleaned_chapters: Dict[str, Dict[str, Any]],
@@ -454,7 +468,7 @@ def write_source_extract(
         quality = cleaned_chapters[chapter_id]["quality"]
         lines.append(f"- Chapter {chapter_id}: `{quality['recommendation']}` score `{quality['quality_score']}`")
     lines.extend(["", "## Repair Notes Summary", ""])
-    for repair in source_summary["repairs"][:50]:
+    for repair in summarize_repairs(source_summary["repairs"])[:50]:
         lines.append(f"- `{repair}`")
     if len(source_summary["repairs"]) > 50:
         lines.append(f"- ... {len(source_summary['repairs']) - 50} additional repairs")

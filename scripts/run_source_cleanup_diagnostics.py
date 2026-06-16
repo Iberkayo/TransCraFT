@@ -26,6 +26,26 @@ CASES = [
         "id": "hyphenation",
         "text": "The rider crossed the moun-\ntain road and kept going.",
     },
+    {
+        "id": "split_initial_letter",
+        "text": "S ee the child.",
+        "expected": "See the child.",
+    },
+    {
+        "id": "split_initial_now",
+        "text": "N ow come days of begging.",
+        "expected": "Now come days of begging.",
+    },
+    {
+        "id": "invisible_word_split",
+        "text": "Neigh\u200bbor, you caint get shed of him.",
+        "expected": "Neighbor, you caint get shed of him.",
+    },
+    {
+        "id": "word_internal_split",
+        "text": "from his cloth\u200bing",
+        "expected": "from his clothing",
+    },
 ]
 
 
@@ -58,6 +78,8 @@ def main() -> None:
                 case["text"],
                 "```",
                 "",
+                f"- Expected: `{case.get('expected', 'n/a')}`",
+                "",
                 "**Cleaned**",
                 "",
                 "```text",
@@ -78,6 +100,8 @@ def main() -> None:
             "## Limitations",
             "",
             "- The repair map is intentionally small.",
+            "- Split initial-letter repair is limited to explicit high-confidence forms such as `S ee` and `N ow`.",
+            "- Invisible separators inside alphabetic tokens are joined, but semantic word-boundary questions still require review.",
             "- Uncertain merged words are flagged instead of guessed.",
             "- Diagnostics use synthetic examples; chapter extraction still requires boundary review.",
             "",
