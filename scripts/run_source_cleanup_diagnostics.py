@@ -1,0 +1,93 @@
+"""Run diagnostics for v0.9.2 source extraction cleanup."""
+
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.tie.source_cleanup import SourceExtractionCleaner, SourceExtractionQualityChecker
+
+
+CASES = [
+    {
+        "id": "merged_pdf_tokens",
+        "text": "He stokesthe scullery fire. Outside lie dark fields with darker woodsbeyond.",
+    },
+    {
+        "id": "punctuation_spacing",
+        "text": "The boy watches him.He waits,he listens.",
+    },
+    {
+        "id": "uncertain_merged_token",
+        "text": "This unknownmergedtoken should be flagged rather than guessed.",
+    },
+    {
+        "id": "hyphenation",
+        "text": "The rider crossed the moun-\ntain road and kept going.",
+    },
+]
+
+
+def main() -> None:
+    output = PROJECT_ROOT / "outputs" / "source_cleanup_diagnostics_report.md"
+    cleaner = SourceExtractionCleaner()
+    checker = SourceExtractionQualityChecker()
+
+    lines = [
+        "# Source Cleanup Diagnostics",
+        "",
+        "## Summary",
+        "",
+        "Synthetic diagnostics for PDF extraction cleanup. The cleaner performs conservative repairs and flags uncertain merged tokens for review.",
+        "",
+        "## Cases",
+        "",
+    ]
+
+    for case in CASES:
+        cleaned = cleaner.clean(case["text"])
+        quality = checker.check(cleaned["cleaned_text"])
+        lines.extend(
+            [
+                f"### {case['id']}",
+                "",
+                "**Input**",
+                "",
+                "```text",
+                case["text"],
+                "```",
+                "",
+                "**Cleaned**",
+                "",
+                "```text",
+                cleaned["cleaned_text"],
+                "```",
+                "",
+                f"- Repairs: `{cleaned['repairs']}`",
+                f"- Cleanup recommendation: `{cleaned['recommendation']}`",
+                f"- Quality score: `{quality['quality_score']}`",
+                f"- Quality flags: `{quality['flags']}`",
+                f"- Quality recommendation: `{quality['recommendation']}`",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "## Limitations",
+            "",
+            "- The repair map is intentionally small.",
+            "- Uncertain merged words are flagged instead of guessed.",
+            "- Diagnostics use synthetic examples; chapter extraction still requires boundary review.",
+            "",
+        ]
+    )
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(lines), encoding="utf-8")
+    print(f"Source cleanup diagnostics written to: {output}")
+
+
+if __name__ == "__main__":
+    main()
