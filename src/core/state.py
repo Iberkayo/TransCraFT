@@ -68,3 +68,8 @@ class TranslationState(TypedDict):
     revision_checklist: Optional[Dict[str, Any]]
     revision_evaluation: Optional[Dict[str, Any]]
     revision_recommendations: Optional[List[str]]
+
+    # TIE v0.8 target-only Turkish naturalness pass
+    target_naturalness_result: Optional[Dict[str, Any]]
+    target_naturalness_revised_text: Optional[str]
+    target_naturalness_recommendation: Optional[str]
