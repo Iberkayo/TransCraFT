@@ -1,17 +1,30 @@
 import logging
 import re
 from typing import Dict, Any, List, Optional
+from src.core.config import Config
 from src.tie.memory_manager import MemoryManager
+from src.tie.memory_ranker import MemoryAwareRanker
 
 logger = logging.getLogger(__name__)
 
 class ContextRouter:
-    def __init__(self, memory_manager: Optional[MemoryManager] = None):
+    def __init__(
+        self,
+        memory_manager: Optional[MemoryManager] = None,
+        enable_memory_aware: Optional[bool] = None,
+        record_usage: bool = True,
+    ):
         self.memory_manager = memory_manager or MemoryManager()
+        self.enable_memory_aware = Config.ENABLE_MEMORY_AWARE_ROUTER if enable_memory_aware is None else enable_memory_aware
+        self.record_usage = record_usage
+        self.ranker = MemoryAwareRanker()
         self.last_loaded_count = 0
         self.last_used_count = 0
         self.last_loaded_memory_ids: List[str] = []
         self.last_injected_memory_ids: List[str] = []
+        self.last_skipped_memory_ids: List[str] = []
+        self.last_routing_decisions: List[Dict[str, Any]] = []
+        self.last_routing_summary: Dict[str, Any] = {}
         self.current_source_text = None
 
     def retrieve_relevant_memory(self, 
@@ -54,10 +67,30 @@ class ContextRouter:
         logger.info(f"ContextRouter loaded sources: {', '.join(loaded_sources)}")
         self.last_loaded_count = len(raw_items)
         self.last_loaded_memory_ids = [item.get("memory_id") for item in raw_items if item.get("memory_id")]
-        try:
-            self.memory_manager.record_memory_loaded(self.last_loaded_memory_ids)
-        except Exception as e:
-            logger.warning(f"Failed to record loaded memory ids: {e}")
+        if self.record_usage:
+            try:
+                self.memory_manager.record_memory_loaded(self.last_loaded_memory_ids)
+            except Exception as e:
+                logger.warning(f"Failed to record loaded memory ids: {e}")
+
+        if self.enable_memory_aware:
+            ranked = self.ranker.route(
+                source_text=source_text,
+                memory_items=raw_items,
+                max_memory_items=max_memory_items,
+            )
+            result = ranked["injected"]
+            self.last_used_count = len(result)
+            self.last_injected_memory_ids = ranked["injected_memory_ids"]
+            self.last_skipped_memory_ids = ranked["skipped_memory_ids"]
+            self.last_routing_decisions = ranked["routing_decisions"]
+            self.last_routing_summary = ranked["summary"]
+            if self.record_usage:
+                try:
+                    self.memory_manager.record_memory_injected(self.last_injected_memory_ids)
+                except Exception as e:
+                    logger.warning(f"Failed to record injected memory ids: {e}")
+            return result
             
         # 5. Filter items to keep only relevant ones
         relevant_items = []
@@ -113,10 +146,29 @@ class ContextRouter:
         result = sorted_items[:max_memory_items]
         self.last_used_count = len(result)
         self.last_injected_memory_ids = [item.get("memory_id") for item in result if item.get("memory_id")]
-        try:
-            self.memory_manager.record_memory_injected(self.last_injected_memory_ids)
-        except Exception as e:
-            logger.warning(f"Failed to record injected memory ids: {e}")
+        self.last_skipped_memory_ids = [
+            item.get("memory_id")
+            for item in sorted_items[max_memory_items:]
+            if item.get("memory_id")
+        ]
+        self.last_routing_decisions = [
+            {
+                "memory_id": item.get("memory_id"),
+                "key": item.get("key"),
+                "scope": item.get("scope"),
+                "type": item.get("type"),
+                "final_score": item.get("importance_score", 0.5),
+                "decision": "inject" if item in result else "skip",
+                "reason": "Legacy router ordering by importance and confidence.",
+            }
+            for item in sorted_items
+        ]
+        self.last_routing_summary = self.ranker.summarize(self.last_routing_decisions)
+        if self.record_usage:
+            try:
+                self.memory_manager.record_memory_injected(self.last_injected_memory_ids)
+            except Exception as e:
+                logger.warning(f"Failed to record injected memory ids: {e}")
         return result
 
     def generate_compact_context(self, relevant_items: List[Dict[str, Any]], work_id: Optional[str] = None) -> str:
@@ -128,60 +180,20 @@ class ContextRouter:
             
         lines = []
         if relevant_items:
-            lines.append("### Translation Intelligence Context (Relevant Memories):")
+            lines.append("### Translation Intelligence Context")
             
-            # Group by type/scope to keep it clean
-            characters = []
-            terminology = []
-            phrases = []
-            rules = []
-            
-            for item in relevant_items:
-                scope = item.get("scope", "")
-                itype = item.get("type", "")
-                key = item.get("key", "")
-                val = item.get("value", "")
-                notes = item.get("notes", "")
-                
-                # Format according to type
-                if itype == "character_info":
-                    char_desc = f"'{key}' -> '{val}'"
-                    if notes:
-                        char_desc += f" ({notes})"
-                    characters.append(char_desc)
-                elif itype in ["terminology", "glossary"]:
-                    term_desc = f"'{key}' -> '{val}'"
-                    if notes:
-                        term_desc += f" ({notes})"
-                    terminology.append(term_desc)
-                elif itype in ["idiom", "phrasal_verb", "correction_pattern"]:
-                    phrase_desc = f"'{key}' -> '{val}'"
-                    if notes:
-                        phrase_desc += f" ({notes})"
-                    phrases.append(phrase_desc)
-                else:
-                    rule_desc = f"[{scope.upper()}] {key or val}"
-                    if key and val:
-                        rule_desc = f"[{scope.upper()}] {key}: {val}"
-                    rules.append(rule_desc)
-                    
-            # Build compact context blocks
-            if characters:
-                lines.append("Characters:")
-                for c in characters:
-                    lines.append(f"  - {c}")
-            if terminology:
-                lines.append("Terminology:")
-                for t in terminology:
-                    lines.append(f"  - {t}")
-            if phrases:
-                lines.append("Phrasal Verbs & Idioms:")
-                for p in phrases:
-                    lines.append(f"  - {p}")
-            if rules:
-                lines.append("General Rules & Preferences:")
-                for r in rules:
-                    lines.append(f"  - {r}")
+            sections = [
+                ("#### High-Confidence Work Memory", lambda item: item.get("scope") == "work"),
+                ("#### User / Genre Preferences", lambda item: item.get("scope") in {"user", "genre"}),
+                ("#### Global Rules", lambda item: item.get("scope") == "global"),
+            ]
+            for title, predicate in sections:
+                grouped_items = [item for item in relevant_items if predicate(item)]
+                if not grouped_items:
+                    continue
+                lines.append(title)
+                for item in grouped_items:
+                    lines.append(f"- {self._format_memory_line(item)}")
                     
         # TIE v0.3 Style Contract Integration
         if work_id:
@@ -227,3 +239,20 @@ class ContextRouter:
                 logger.error(f"Error resolving style contract in ContextRouter: {e}")
                 
         return "\n".join(lines)
+
+    def _format_memory_line(self, item: Dict[str, Any]) -> str:
+        scope = item.get("scope", "")
+        itype = item.get("type", "")
+        key = item.get("key", "")
+        val = item.get("value", "")
+        notes = item.get("notes", "")
+        if itype in {"character_info", "terminology", "glossary", "idiom", "phrasal_verb", "correction_pattern"}:
+            desc = f"{key} -> {val}"
+        else:
+            desc = f"[{scope.upper()}] {key}: {val}" if key and val else f"[{scope.upper()}] {key or val}"
+        if notes:
+            desc += f" ({notes})"
+        routing = item.get("_routing_decision") or {}
+        if routing.get("final_score") is not None:
+            desc += f" [score: {routing['final_score']:.2f}]"
+        return desc

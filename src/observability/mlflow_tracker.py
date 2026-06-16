@@ -65,5 +65,21 @@ class MLflowTracker:
         except Exception as e:
             print(f"Warning: Failed to log memory effectiveness to MLflow. Error: {e}")
 
+    def log_memory_router_metrics(self, metrics: Dict[str, Any]):
+        """Log memory-aware router metrics without failing translation."""
+        if not self.enabled or not metrics:
+            return
+
+        try:
+            numeric_metrics = {
+                key: float(value)
+                for key, value in metrics.items()
+                if isinstance(value, (int, float))
+            }
+            with self._mlflow.start_run(run_name="memory_aware_router", nested=True):
+                self._mlflow.log_metrics(numeric_metrics)
+        except Exception as e:
+            print(f"Warning: Failed to log memory-aware router metrics to MLflow. Error: {e}")
+
 # Create singleton
 mlflow_tracker = MLflowTracker()

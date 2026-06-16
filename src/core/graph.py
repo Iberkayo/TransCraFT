@@ -16,7 +16,10 @@ def run_context_router(state: TranslationState) -> dict:
             "relevant_memories": [],
             "loaded_memory_ids": [],
             "injected_memory_ids": [],
-            "memory_provenance": []
+            "skipped_memory_ids": [],
+            "memory_provenance": [],
+            "routing_decisions": [],
+            "routing_summary": {},
         }
     
     from src.tie.router import ContextRouter
@@ -49,6 +52,7 @@ def run_context_router(state: TranslationState) -> dict:
             "importance_score": item.get("importance_score"),
             "source_path": item.get("_source_path"),
             "provenance": item.get("provenance"),
+            "routing": item.get("_routing_decision"),
         }
         for item in relevant
         if item.get("memory_id")
@@ -60,13 +64,43 @@ def run_context_router(state: TranslationState) -> dict:
         "action": "Retrieved relevant translation memories",
         "output": f"Loaded {len(relevant)} memory item(s). Memory IDs used: {memory_id_text}. Compact Context:\n{compact}" if relevant else "No relevant memories found."
     }
+
+    try:
+        from src.observability.mlflow_tracker import mlflow_tracker
+
+        mlflow_tracker.log_memory_router_metrics(router.last_routing_summary)
+    except Exception:
+        pass
+
+    trace_id = state.get("trace_id")
+    if trace_id:
+        try:
+            from src.observability.langfuse_tracker import tracker
+
+            span = tracker.create_span(
+                trace_id,
+                name="memory_aware_router",
+                metadata={
+                    "loaded_memory_ids": router.last_loaded_memory_ids,
+                    "injected_memory_ids": router.last_injected_memory_ids,
+                    "skipped_memory_ids": router.last_skipped_memory_ids,
+                    "routing_summary": router.last_routing_summary,
+                    "global_memory_share": router.last_routing_summary.get("router_global_memory_share", 0.0),
+                },
+            )
+            tracker.end_span(span, output_data=router.last_routing_decisions)
+        except Exception:
+            pass
     
     return {
         "relevant_memories": relevant,
         "compact_memory_context": compact,
         "loaded_memory_ids": router.last_loaded_memory_ids,
         "injected_memory_ids": router.last_injected_memory_ids,
+        "skipped_memory_ids": router.last_skipped_memory_ids,
         "memory_provenance": memory_provenance,
+        "routing_decisions": router.last_routing_decisions,
+        "routing_summary": router.last_routing_summary,
         "memory_loaded_count": router.last_loaded_count,
         "memory_used_count": router.last_used_count,
         "logs": state.get("logs", []) + [log_entry]
