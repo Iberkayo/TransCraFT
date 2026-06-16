@@ -1,0 +1,40 @@
+{
+  "description": "Human review schema for calibrating end-to-end translation quality benchmark results. Each case should be independently reviewed by a human (Berkay).",
+  "version": "0.9.1",
+  "fields": {
+    "case_id": { "type": "string", "required": true, "description": "Matching case ID from end_to_end_quality_cases.json" },
+    "reviewer": { "type": "string", "required": true, "description": "Name of the human reviewer" },
+    "preferred_output": { "type": "string", "required": true, "enum": ["baseline", "strategy_only", "full_chain", "tie"] },
+    "naturalness_winner": { "type": "string", "required": true, "enum": ["baseline", "strategy_only", "full_chain", "tie"] },
+    "meaning_preservation_winner": { "type": "string", "required": true, "enum": ["baseline", "strategy_only", "full_chain", "tie", "cannot_judge"] },
+    "least_translationese": { "type": "string", "required": true, "enum": ["baseline", "strategy_only", "full_chain", "tie"] },
+    "over_editing_detected": { "type": "boolean", "required": true },
+    "protected_term_issue": { "type": "boolean", "required": true },
+    "notes": { "type": "string", "required": false },
+    "error_tags": { "type": "array", "required": true, "items": { "type": "string" } },
+    "severity": { "type": "string", "required": true, "enum": ["none", "minor", "major", "critical"] }
+  },
+  "allowed_error_tags": [
+    "meaning_loss",
+    "added_meaning",
+    "omitted_meaning",
+    "translationese",
+    "unnatural_turkish",
+    "over_editing",
+    "under_editing",
+    "wrong_register",
+    "terminology_issue",
+    "protected_term_loss",
+    "number_date_issue",
+    "pronoun_overuse",
+    "heavy_relative_clause",
+    "noun_stack_literalness",
+    "passive_stiffness",
+    "idiom_literalness",
+    "style_loss",
+    "rhythm_loss",
+    "too_verbose",
+    "too_flat",
+    "no_clear_difference"
+  ]
+}
