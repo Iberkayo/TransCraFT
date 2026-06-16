@@ -5,7 +5,7 @@
     "source_language": "en_US",
     "target_language": "tr_TR",
     "source_text": "The legacy software is expected to be phased out by the end of Q3, a decision which has left many departments wondering how their daily operations will be affected.",
-    "risk_type": ["relative_clause", "translationese", "sentence_splitting"],
+    "risk_type": ["long_relative_clause", "business_translationese_risk", "sentence_splitting"],
     "expected_improvement": "Strategy ON should split the sentence and avoid literal English clause order."
   },
   {
@@ -23,7 +23,7 @@
     "source_language": "en_US",
     "target_language": "tr_TR",
     "source_text": "The report was reviewed by the committee and was approved after several minor revisions.",
-    "risk_type": ["passive_voice", "formal_register"],
+    "risk_type": ["passive_voice", "double_passive", "formal_register"],
     "expected_improvement": "Strategy ON should choose a natural formal Turkish passive or active structure."
   },
   {
@@ -41,7 +41,7 @@
     "source_language": "en_US",
     "target_language": "tr_TR",
     "source_text": "Management wants the rollout to be completed quickly, but not at the expense of customer trust.",
-    "risk_type": ["corporate_sentence", "idiomatic_balance"],
+    "risk_type": ["corporate_sentence", "idiomatic_balance", "business_translationese_risk"],
     "expected_improvement": "Strategy ON should preserve the contrast and avoid stiff corporate wording."
   },
   {
@@ -59,7 +59,7 @@
     "source_language": "en_US",
     "target_language": "tr_TR",
     "source_text": "He stood at the door. Silent. Waiting.",
-    "risk_type": ["literary_short_sentence", "fragment_preservation", "rhythm"],
+    "risk_type": ["literary_fragment", "fragment_preservation", "rhythm"],
     "expected_improvement": "Strategy ON should preserve fragments and avoid over-explaining."
   },
   {
@@ -68,7 +68,7 @@
     "source_language": "en_US",
     "target_language": "tr_TR",
     "source_text": "The announcement threw cold water on the team's optimism.",
-    "risk_type": ["idiom", "metaphor", "literalness"],
+    "risk_type": ["idiom_or_metaphor", "literalness"],
     "expected_improvement": "Strategy ON should avoid literal wording and preserve the meaning of the idiom."
   },
   {
@@ -88,5 +88,95 @@
     "source_text": "The update from the finance team about the delay in the payment process arrived after the meeting.",
     "risk_type": ["preposition_heavy", "noun_stack", "sentence_reconstruction"],
     "expected_improvement": "Strategy ON should unpack prepositional phrases into natural Turkish order."
+  },
+  {
+    "id": "nested_relative_clause_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The vendor that manages the platform which stores regional invoices will be replaced next month.",
+    "risk_type": ["long_relative_clause", "nested_relative_clause", "sentence_splitting"],
+    "expected_improvement": "Strategy ON should split or reorder nested relative clauses into readable Turkish."
+  },
+  {
+    "id": "double_passive_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The request was submitted by the branch office and was later rejected by the compliance unit.",
+    "risk_type": ["passive_voice", "double_passive"],
+    "expected_improvement": "Strategy ON should avoid unnecessary passive stacking."
+  },
+  {
+    "id": "legal_nominalization_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The implementation of the termination provision requires notification of all affected contractors.",
+    "risk_type": ["academic_nominalization", "legal_business_nominalization", "noun_stack"],
+    "expected_improvement": "Strategy ON should convert dense nominalizations into clear Turkish legal-business prose."
+  },
+  {
+    "id": "academic_noun_pile_001",
+    "genre": "academic",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The energy market volatility prediction accuracy evaluation framework is tested across three datasets.",
+    "risk_type": ["noun_stack", "academic_nominalization", "technical_clarity"],
+    "expected_improvement": "Strategy ON should unpack the noun pile and preserve the academic claim."
+  },
+  {
+    "id": "literary_implied_subject_001",
+    "genre": "literary",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "Went back to the window. No answer. Only the rain.",
+    "risk_type": ["literary_fragment", "implied_subject", "rhythm"],
+    "expected_improvement": "Strategy ON should preserve implied subject and fragment rhythm."
+  },
+  {
+    "id": "metaphor_nonliteral_001",
+    "genre": "general",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The failed pilot opened the door to a more careful redesign.",
+    "risk_type": ["idiom_or_metaphor", "literalness"],
+    "expected_improvement": "Strategy ON should avoid literal door imagery if it sounds unnatural."
+  },
+  {
+    "id": "phrasal_nonliteral_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The board turned down the proposal because the cost assumptions did not hold up.",
+    "risk_type": ["phrasal_verb", "nonliteral_meaning", "business_register"],
+    "expected_improvement": "Strategy ON should translate phrasal verbs by meaning, not particles."
+  },
+  {
+    "id": "long_multiclause_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The team delayed the release because the billing service failed during testing, but the client still expects the launch to happen before Friday.",
+    "risk_type": ["long_sentence", "multiple_clauses", "sentence_splitting"],
+    "expected_improvement": "Strategy ON should split the sentence where Turkish readability improves."
+  },
+  {
+    "id": "pronoun_ambiguity_001",
+    "genre": "general",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "When Mira called Deniz, she said her manager wanted her to revise the plan before she sent it.",
+    "risk_type": ["pronoun_heavy", "pronoun_ambiguity"],
+    "expected_improvement": "Strategy ON should avoid unnecessary pronouns while preserving who did what."
+  },
+  {
+    "id": "clear_split_required_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The new policy applies to all vendors who process customer records, which means the procurement team must update every active contract this month.",
+    "risk_type": ["long_relative_clause", "sentence_splitting", "business_translationese_risk"],
+    "expected_improvement": "Strategy ON should clearly split the policy scope and the required action."
   }
 ]

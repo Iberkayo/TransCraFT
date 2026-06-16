@@ -195,7 +195,19 @@ def generate_report(result: Dict[str, Any], output_path: Path) -> Path:
 def bullet_list(items: List[Any]) -> str:
     if not items:
         return "_None._"
-    return "\n".join(f"- {item}" for item in items)
+    lines = []
+    for item in items:
+        if isinstance(item, dict):
+            lines.append(
+                "- {risk_type}: {evidence} | strategy: {recommended_strategy}".format(
+                    risk_type=item.get("risk_type", "risk"),
+                    evidence=item.get("evidence", ""),
+                    recommended_strategy=item.get("recommended_strategy", ""),
+                )
+            )
+        else:
+            lines.append(f"- {item}")
+    return "\n".join(lines)
 
 
 def fenced_excerpt(text: str, max_lines: int = 28) -> str:

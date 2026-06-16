@@ -31,9 +31,13 @@ TRANSLATIONESE_PATTERNS = [
     "tarafindan",
     "taraf\u0131ndan",
     "a\u015f\u0131r\u0131 uzun c\u00fcmle",
+    "merak etmesine yol acti",
+    "merak etmesine yol a\u00e7t\u0131",
+    "bu da",
+    "anlamina gelir",
+    "anlam\u0131na gelir",
     " o ",
     " onun ",
-    " bu ",
 ]
 
 
@@ -99,20 +103,25 @@ def has_error(text: str) -> bool:
     return not text.strip() or text.startswith("ERROR:")
 
 
-def score_case(off_text: str, on_text: str) -> Dict[str, Any]:
+def score_case(off_text: str, on_text: str, case: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    risk_types = set((case or {}).get("risk_type", []))
     off_patterns = detect_translationese_patterns(off_text)
     on_patterns = detect_translationese_patterns(on_text)
     off_long_penalty = 1 if len(off_text.split()) > 32 and sentence_count(off_text) <= 1 else 0
     on_long_penalty = 1 if len(on_text.split()) > 32 and sentence_count(on_text) <= 1 else 0
+    split_bonus = 1 if "sentence_splitting" in risk_types and sentence_count(on_text) > sentence_count(off_text) else 0
 
     off_naturalness = clamp_score(5 - min(3, len(off_patterns)) - off_long_penalty)
-    on_naturalness = clamp_score(5 - min(3, len(on_patterns)) - on_long_penalty)
-    literalness_reduction = clamp_score(3 + len(off_patterns) - len(on_patterns) + (on_long_penalty < off_long_penalty))
-    meaning_preservation = 1 if has_error(off_text) or has_error(on_text) else 4
+    on_naturalness = clamp_score(5 - min(3, len(on_patterns)) - on_long_penalty + split_bonus)
+    off_literalness_score = clamp_score(5 - min(4, len(off_patterns) + off_long_penalty))
+    on_literalness_score = clamp_score(5 - min(4, len(on_patterns) + on_long_penalty) + split_bonus)
+    literalness_reduction = clamp_score(3 + on_literalness_score - off_literalness_score)
+    off_meaning_preservation = 1 if has_error(off_text) else 4
+    on_meaning_preservation = 1 if has_error(on_text) else 4
 
-    if on_naturalness > off_naturalness or len(on_patterns) < len(off_patterns):
+    if on_naturalness > off_naturalness or on_literalness_score > off_literalness_score:
         preferred = "ON"
-    elif off_naturalness > on_naturalness or len(off_patterns) < len(on_patterns):
+    elif off_naturalness > on_naturalness or off_literalness_score > on_literalness_score:
         preferred = "OFF"
     else:
         preferred = "Tie"
@@ -122,8 +131,11 @@ def score_case(off_text: str, on_text: str) -> Dict[str, Any]:
         "on_patterns": on_patterns,
         "off_naturalness": off_naturalness,
         "on_naturalness": on_naturalness,
+        "off_literalness_score": off_literalness_score,
+        "on_literalness_score": on_literalness_score,
         "literalness_reduction": literalness_reduction,
-        "meaning_preservation": meaning_preservation,
+        "off_meaning_preservation": off_meaning_preservation,
+        "on_meaning_preservation": on_meaning_preservation,
         "preferred": preferred,
         "on_reduced_literalness": len(on_patterns) < len(off_patterns) or on_long_penalty < off_long_penalty,
         "visible_difference": visible_difference(off_text, on_text),
@@ -164,7 +176,7 @@ def run_benchmark(
         except Exception as exc:
             on_translation = f"ERROR: {exc}"
 
-        scores = score_case(off_translation, on_translation)
+        scores = score_case(off_translation, on_translation, case)
         records.append(
             {
                 "case": case,
@@ -188,12 +200,40 @@ def summarize(records: List[Dict[str, Any]]) -> Dict[str, Any]:
         "ties": sum(1 for r in records if r["preferred"] == "Tie"),
         "on_helped": [r["case"]["id"] for r in records if r["preferred"] == "ON"],
         "on_harmed": [r["case"]["id"] for r in records if r["preferred"] == "OFF"],
+        "translationese_count_off": sum(len(r["off_patterns"]) for r in records),
+        "translationese_count_on": sum(len(r["on_patterns"]) for r in records),
+        "average_naturalness_off": average(r["off_naturalness"] for r in records),
+        "average_naturalness_on": average(r["on_naturalness"] for r in records),
+        "average_literalness_score_off": average(r["off_literalness_score"] for r in records),
+        "average_literalness_score_on": average(r["on_literalness_score"] for r in records),
+        "average_meaning_preservation_off": average(r["off_meaning_preservation"] for r in records),
+        "average_meaning_preservation_on": average(r["on_meaning_preservation"] for r in records),
         "errors": [
             r["case"]["id"]
             for r in records
             if has_error(r["off_translation"]) or has_error(r["on_translation"])
         ],
     }
+
+
+def average(values: Any) -> float:
+    numbers = list(values)
+    return sum(numbers) / len(numbers) if numbers else 0.0
+
+
+def impact_label(summary: Dict[str, Any]) -> str:
+    case_count = max(1, summary["case_count"])
+    on_win_rate = summary["on_wins"] / case_count
+    harm_rate = summary["off_wins"] / case_count
+    if summary["ties"] > max(summary["on_wins"], summary["off_wins"]):
+        return "Inconclusive"
+    if on_win_rate >= 0.50 and harm_rate <= 0.10:
+        return "Strong positive"
+    if summary["on_wins"] > summary["off_wins"] and harm_rate <= 0.20:
+        return "Mild positive"
+    if summary["off_wins"] > summary["on_wins"] or harm_rate > 0.25:
+        return "Negative"
+    return "Inconclusive"
 
 
 def render_report(records: List[Dict[str, Any]], summary: Dict[str, Any]) -> str:
@@ -209,7 +249,19 @@ def render_report(records: List[Dict[str, Any]], summary: Dict[str, Any]) -> str
         f"- Strategy ON wins: {summary['on_wins']}",
         f"- Strategy OFF wins: {summary['off_wins']}",
         f"- Ties: {summary['ties']}",
+        f"- ON harm cases: {len(summary['on_harmed'])}",
+        f"- Translationese patterns OFF: {summary['translationese_count_off']}",
+        f"- Translationese patterns ON: {summary['translationese_count_on']}",
+        f"- Average naturalness OFF: {summary['average_naturalness_off']:.2f}",
+        f"- Average naturalness ON: {summary['average_naturalness_on']:.2f}",
+        f"- Average literalness score OFF: {summary['average_literalness_score_off']:.2f}",
+        f"- Average literalness score ON: {summary['average_literalness_score_on']:.2f}",
+        f"- Average meaning preservation OFF: {summary['average_meaning_preservation_off']:.2f}",
+        f"- Average meaning preservation ON: {summary['average_meaning_preservation_on']:.2f}",
+        f"- Strategy Planner Impact: {impact_label(summary)}",
         f"- Translation errors: {len(summary['errors'])}",
+        "",
+        "This remains a small synthetic benchmark. Human review is still needed; ON wins do not automatically prove production quality. Ties mean the planner may still be insufficiently influential, and harm cases must be inspected manually.",
         "",
         "## 2. Overall Result",
         "",
@@ -258,7 +310,7 @@ def render_report(records: List[Dict[str, Any]], summary: Dict[str, Any]) -> str
                 f"Visible difference: {record['visible_difference']}",
                 f"Did ON reduce translationese? {'yes' if record['on_reduced_literalness'] else 'no'}",
                 f"Did ON improve Turkish naturalness? {'yes' if record['on_naturalness'] > record['off_naturalness'] else 'no'}",
-                f"Did ON preserve meaning? heuristic score {record['meaning_preservation']}/5",
+                f"Did ON preserve meaning? heuristic score {record['on_meaning_preservation']}/5",
                 f"Did ON over-edit or harm anything? {'yes' if record['on_harm'] else 'no'}",
                 f"Preferred: {record['preferred']}",
                 "",
@@ -285,6 +337,11 @@ def render_report(records: List[Dict[str, Any]], summary: Dict[str, Any]) -> str
     lines.extend(
         [
             "",
+            "Summary:",
+            "",
+            f"- OFF pattern count: {summary['translationese_count_off']}",
+            f"- ON pattern count: {summary['translationese_count_on']}",
+            "",
             "## 5. Where Strategy ON Helped",
             "",
             bullet_list(summary["on_helped"]),
@@ -309,9 +366,10 @@ def render_report(records: List[Dict[str, Any]], summary: Dict[str, Any]) -> str
 def recommendation(summary: Dict[str, Any]) -> str:
     if summary["errors"]:
         return "Revise before enabling by default; benchmark contains translation errors."
-    if summary["on_wins"] > summary["off_wins"]:
+    label = impact_label(summary)
+    if label in {"Strong positive", "Mild positive"}:
         return "Keep Strategy Planner enabled by default, with continued human review."
-    if summary["on_wins"] == summary["off_wins"]:
+    if label == "Inconclusive":
         return "Keep Strategy Planner, but treat the default-enabled decision as inconclusive."
     return "Keep Strategy Planner available but disable by default until prompt strategy is revised."
 
@@ -351,6 +409,8 @@ def main() -> None:
     print(f"Strategy ON wins: {summary['on_wins']}")
     print(f"Strategy OFF wins: {summary['off_wins']}")
     print(f"Ties: {summary['ties']}")
+    print(f"Impact: {impact_label(summary)}")
+    print(f"Translationese OFF/ON: {summary['translationese_count_off']} / {summary['translationese_count_on']}")
     print(f"Errors: {len(summary['errors'])}")
 
 

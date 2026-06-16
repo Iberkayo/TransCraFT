@@ -6,6 +6,7 @@ from scripts.run_strategy_planner_onoff_benchmark import (
     VALID_PREFERENCES,
     build_benchmark_state,
     detect_translationese_patterns,
+    impact_label,
     load_cases,
     run_benchmark,
     translate_case,
@@ -18,7 +19,7 @@ CASES_PATH = Path("data/eval/strategy_planner_onoff_cases.json")
 def test_onoff_cases_file_loads():
     cases = load_cases(CASES_PATH)
 
-    assert 8 <= len(cases) <= 12
+    assert len(cases) >= 20
     assert all(case["source_text"] for case in cases)
     assert {"genre", "source_language", "target_language", "risk_type"}.issubset(cases[0].keys())
 
@@ -89,6 +90,26 @@ def test_preferred_field_is_valid(tmp_path: Path):
     result = run_benchmark(cases_path, tmp_path / "report.md", translator=fake_translator)
 
     assert all(record["preferred"] in VALID_PREFERENCES for record in result["records"])
+
+
+def test_benchmark_reports_translationese_counts(tmp_path: Path):
+    cases_path = tmp_path / "cases.json"
+    cases_path.write_text(json.dumps(load_cases(CASES_PATH)[:2]), encoding="utf-8")
+
+    result = run_benchmark(cases_path, tmp_path / "report.md", translator=fake_translator)
+
+    assert "translationese_count_off" in result["summary"]
+    assert "translationese_count_on" in result["summary"]
+    assert result["summary"]["translationese_count_off"] > result["summary"]["translationese_count_on"]
+
+
+def test_benchmark_impact_label_is_valid(tmp_path: Path):
+    cases_path = tmp_path / "cases.json"
+    cases_path.write_text(json.dumps(load_cases(CASES_PATH)[:3]), encoding="utf-8")
+
+    result = run_benchmark(cases_path, tmp_path / "report.md", translator=fake_translator)
+
+    assert impact_label(result["summary"]) in {"Strong positive", "Mild positive", "Inconclusive", "Negative"}
 
 
 def test_no_copyrighted_required_inputs():

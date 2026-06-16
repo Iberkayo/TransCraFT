@@ -56,6 +56,7 @@ You are extremely strict. If there are factual errors, omitted sentences, or maj
 1. Verify that all terms in the Positive Glossary were used exactly. If any are missing or translated differently, REJECT.
 2. Verify that NO terms from the Negative Glossary were used. If any are present, REJECT.
 3. Check Auto-Extracted Terminology Candidates (optional, but good to have).
+4. Treat the Strategy Critic Checklist as risk-specific validation. If it asks to avoid a heavy relative clause, passive stack, literal phrasal verb, or translationese pattern such as "neden oldu", check that directly.
 
 ### Positive Glossary:
 {pos_glossary_text}
@@ -74,7 +75,7 @@ You are extremely strict. If there are factual errors, omitted sentences, or maj
 1. Check for **Accuracy**: Did the stylist omit any sentences or alter facts?
 2. Check for **Flow & Naturalness**: Does the {target_lang} version read naturally, or are there clunky phrasing issues?
 3. Check for **Idioms**: Were the idioms adapted appropriately, or did they get translated literally?
-4. Check strategy compliance: unnecessary pronouns, translationese patterns, heavy relative-clause chains, register, terminology, style, and rhythm.
+4. Check strategy compliance: unnecessary pronouns, translationese patterns, heavy relative-clause chains, passive stacking, register, terminology, style, and rhythm.
 5. **Approval Logic**: If there are noticeable flow issues or errors, set `is_approved` to False and write a detailed constructive critique. If it is already high quality and ready to publish, set `is_approved` to True.
 
 *Note: If this is Revision #{Config.MAX_REVISIONS}, be slightly more lenient to prevent infinite loops, and only reject if there are severe factual errors.*

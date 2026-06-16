@@ -39,10 +39,11 @@ Source: Alice was beginning to get very tired of sitting by her sister on the ba
 
 ## 6. Structural Risks Detected
 
-- Check for translationese patterns listed in the target profile.
+- translationese_risk: Alice was beginning to get very tired of sitting by her sister on the bank. | strategy: Check target-profile anti-translationese rules before final wording.
 
 ## 7. Translator Instructions
 
+- treat strategy notes as constraints unless they harm source meaning
 - preserve full meaning before polishing style
 - translate by meaning units, not word by word
 - avoid translationese and unnecessary repetition
@@ -90,10 +91,11 @@ Source: The judge watched the fire while the boy stood silent in the doorway.
 
 ## 6. Structural Risks Detected
 
-- Check for translationese patterns listed in the target profile.
+- translationese_risk: The judge watched the fire while the boy stood silent in the doorway. | strategy: Check target-profile anti-translationese rules before final wording.
 
 ## 7. Translator Instructions
 
+- treat strategy notes as constraints unless they harm source meaning
 - preserve full meaning before polishing style
 - translate by meaning units, not word by word
 - avoid translationese and unnecessary repetition
@@ -138,19 +140,22 @@ Source: The model relies on attention mechanisms to draw global dependencies bet
 - drop unnecessary pronouns when Turkish morphology or context is enough
 - reconstruct meaning naturally in Turkish before final wording
 - prioritize terminology consistency and clear claims
+- Unpack the English noun stack into a clear Turkish possessive or explanatory phrase.
 
 ## 6. Structural Risks Detected
 
-- Check for translationese patterns listed in the target profile.
+- noun_stack: draw global dependencies between input | strategy: Unpack the stack into a clear possessive or explanatory Turkish phrase.
 
 ## 7. Translator Instructions
 
+- treat strategy notes as constraints unless they harm source meaning
 - preserve full meaning before polishing style
 - translate by meaning units, not word by word
 - avoid translationese and unnecessary repetition
 - produce only the target-language translation
 - respect work-specific names, terminology, and style decisions
 - prioritize terminology consistency and technical accuracy
+- For noun_stack: Unpack the stack into a clear possessive or explanatory Turkish phrase.
 
 ## 8. Critic Checklist
 
@@ -160,6 +165,7 @@ Source: The model relies on attention mechanisms to draw global dependencies bet
 - long relative clause chains avoided
 - register consistency
 - terminology consistency
+- Did the output unpack the noun stack into readable Turkish?
 
 ## 9. Before/After Translation Comparison
 
@@ -187,23 +193,23 @@ Strategy Planner ON context excerpt:
 - Localization: Localize idioms and phrasing naturally while preserving source meaning.
 
 Meaning units:
-- The legacy software is expected to be phased out by the end of Q3, a decision which has left many departments wondering how their daily operations will be affected.
+- The legacy software is expected to be phased out by the end of Q3
+- a decision which has left many departments wondering how their daily operations will be affected.
+
+Structural risks:
+- long_sentence: The legacy software is expected to be phased out by the end of Q3, a decision which has left many departments wondering how their daily operations will be affected. | risk: A long source sentence may become heavy or unclear in Turkish. | strategy: Split into natural Turkish sentence units when readability improves.
+- long_relative_clause: , a decision which has left many departments wondering how their daily operations will be affected | risk: Literal English clause order may create unnatural Turkish. | strategy: Split into two Turkish sentences and reconstruct causality naturally.
+- noun_stack: decision which has left many departments wondering | risk: Stacked English modifiers may become an opaque Turkish noun chain. | strategy: Unpack the stack into a clear possessive or explanatory Turkish phrase.
+- passive_voice: is expected | risk: Mechanical passive transfer may sound stiff or obscure agency. | strategy: Decide whether Turkish should keep passive voice or use a natural active structure.
+- double_passive: The legacy software is expected to be phased out by the end of Q3, a decision which has left many departments wondering how their daily operations will be affected. | risk: Multiple passive verbs can make Turkish bureaucratic and heavy. | strategy: Reduce passive stacking where meaning allows.
+- business_translationese_risk: has left | risk: Literal business phrasing may lead to stiff Turkish such as 'neden oldu'. | strategy: Use natural corporate Turkish such as 'soru isaretleri yaratti' or 'endise yaratti' when meaning fits.
 
 Target-language reconstruction notes:
 - avoid literal English word order
 - drop unnecessary pronouns when Turkish morphology or context is enough
 - reconstruct meaning naturally in Turkish before final wording
-
-Target language profile rules:
-- Turkish generally prefers SOV order, but natural rhythm is more important than mechanical word order.
-- Drop pronouns when the verb ending or context already marks the subject.
-- Avoid literal transfer of English relative clauses.
-- Avoid unnecessary 'o', 'onun', and 'bu' pronouns.
-- Unpack English noun stacks into natural Turkish phrases.
-- Adapt passive voice depending on genre and target register.
-- Convert English prepositions into Turkish case suffixes, postpositions, or natural verbs.
-- Prefer natural Turkish sentence rhythm.
-- Use natural formal Turkish.
+- Split long sentences when Turkish readability improves.
+- Use two Turkish sentences when the relative clause becomes heavy.
 ```
 
 Observed difference: Strategy ON adds meaning units, target profile rules, reconstruction notes, and structural risks. This is prompt-level evidence only; no real translation output was generated.
