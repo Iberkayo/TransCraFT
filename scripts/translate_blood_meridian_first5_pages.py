@@ -18,19 +18,21 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from src.agents.stylist import stylize_translation
 from src.agents.translator import translate_draft
 from src.core.config import Config
+from src.tie.chunk_stitching import SentenceSafeChunker
 from src.tie.foreign_residue import ForeignResidueDetector
+from src.tie.literary_semantic_qa import LiterarySemanticQAChecker
+from src.tie.quality_gate import QualityGate
 from src.tie.revision_checklist import build_and_evaluate
 from src.tie.source_cleanup import SourceExtractionCleaner, SourceExtractionQualityChecker
 from src.tie.strategy_planner import TranslationStrategyPlanner
 from src.tie.target_naturalness import TargetOnlyNaturalnessPass
+from src.tie.turkish_fluency_qa import TurkishFluencyAnomalyChecker
 
 from scripts.translate_blood_meridian_ch1_ch2_v2 import (
     PROPER_NOUNS,
-    chunk_recommendation,
     load_json,
     load_style_contract,
     load_text,
-    split_large_paragraph,
     strip_response_wrappers,
     style_analysis,
     style_contract_context,
@@ -130,34 +132,28 @@ def build_chunks(
     source_quality: Dict[str, Any],
     cleanup: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", cleaned_text) if p.strip()]
-    chunks: List[Dict[str, Any]] = []
-    current: List[str] = []
-    current_len = 0
-
-    for paragraph in paragraphs:
-        for unit in split_large_paragraph(paragraph, MAX_CHARS):
-            next_len = current_len + len(unit) + (2 if current else 0)
-            if current and next_len > MAX_CHARS:
-                chunks.append(chunk_record(current, pages_used, source_quality, cleanup))
-                current = []
-                current_len = 0
-            current.append(unit)
-            current_len += len(unit) + (2 if current else 0)
-    if current:
-        chunks.append(chunk_record(current, pages_used, source_quality, cleanup))
-    return chunks
+    chunker = SentenceSafeChunker(max_chars=MAX_CHARS)
+    chunk_result = chunker.chunk_text(cleaned_text, chunk_id_prefix="bm_first5")
+    return [
+        chunk_record(chunk, pages_used, source_quality, cleanup)
+        for chunk in chunk_result["chunks"]
+    ]
 
 
 def chunk_record(
-    units: List[str],
+    chunk: Dict[str, Any],
     pages_used: List[int],
     source_quality: Dict[str, Any],
     cleanup: Dict[str, Any],
 ) -> Dict[str, Any]:
     return {
-        "source_text": "\n\n".join(units).strip(),
+        "chunk_id": chunk["chunk_id"],
+        "source_text": chunk["text"],
+        "start_offset": chunk["start_offset"],
+        "end_offset": chunk["end_offset"],
         "source_pages": pages_used,
+        "boundary_flags": chunk["boundary_flags"],
+        "boundary_recommendation": chunk["recommendation"],
         "source_quality": source_quality,
         "source_repairs": summarize_repairs(cleanup["repairs"]),
     }
@@ -171,11 +167,14 @@ def translate_chunks(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     glossary = load_json(PROJECT_ROOT / "data" / "reference" / "literary" / "glossary.json", default=[])
     detector = ForeignResidueDetector()
     naturalness = TargetOnlyNaturalnessPass()
+    semantic_checker = LiterarySemanticQAChecker()
+    fluency_checker = TurkishFluencyAnomalyChecker()
+    quality_gate = QualityGate()
 
     translated_chunks = []
     previous_context = "None (first chunk)"
     for index, chunk in enumerate(chunks, start=1):
-        chunk_id = f"bm_first5_{index:02d}"
+        chunk_id = chunk["chunk_id"]
         print(f"Translating {chunk_id} ({len(chunk['source_text'])} chars)")
         strategy = planner.plan(
             source_text=chunk["source_text"],
@@ -237,14 +236,22 @@ def translate_chunks(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             protected_terms=PROPER_NOUNS,
             proper_nouns=PROPER_NOUNS,
         )
-        recommendation = chunk_recommendation(
-            chunk["source_quality"]["recommendation"],
-            residue_after["recommendation"],
-            naturalness_result["recommendation"],
+        semantic_qa = semantic_checker.check(chunk["source_text"], final_text)
+        fluency_qa = fluency_checker.check(final_text)
+        gate = quality_gate.evaluate(
+            source_quality=chunk["source_quality"],
+            foreign_residue=residue_after,
+            boundary_flags=chunk["boundary_flags"],
+            semantic_flags=semantic_qa["flags"],
+            fluency_flags=fluency_qa["flags"],
         )
+        if naturalness_result["recommendation"] == "reject" and gate["recommendation"] == "accept":
+            gate["recommendation"] = "review"
+
         record = {
             "chunk_id": chunk_id,
             "source_pages": chunk["source_pages"],
+            "boundary_flags": chunk["boundary_flags"],
             "source_text": chunk["source_text"],
             "translation": final_text,
             "source_quality_score": chunk["source_quality"]["quality_score"],
@@ -258,7 +265,10 @@ def translate_chunks(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "foreign_residue_count_before_final": residue_before["foreign_residue_count"],
             "foreign_residue_count_after_final": residue_after["foreign_residue_count"],
             "foreign_residues": residue_after["residues"],
-            "recommendation": recommendation,
+            "semantic_qa_flags": semantic_qa["flags"],
+            "fluency_qa_flags": fluency_qa["flags"],
+            "quality_gate": gate,
+            "recommendation": gate["recommendation"],
         }
         translated_chunks.append(record)
         previous_context = summarize_previous_context(final_text)
@@ -382,6 +392,10 @@ def write_outputs(
                 f"- Source page range: `{chunk['source_pages']}`",
                 f"- Recommendation: `{chunk['recommendation']}`",
                 "",
+                "### Chunk boundary QA",
+                "",
+                f"`{chunk['boundary_flags']}`",
+                "",
                 "### Source excerpt",
                 "",
                 "```text",
@@ -414,6 +428,14 @@ def write_outputs(
                 f"- After final: `{chunk['foreign_residue_count_after_final']}`",
                 f"- Residues: `{chunk['foreign_residues']}`",
                 "",
+                "### Literary semantic QA",
+                "",
+                f"`{chunk['semantic_qa_flags']}`",
+                "",
+                "### Turkish fluency QA",
+                "",
+                f"`{chunk['fluency_qa_flags']}`",
+                "",
                 "### Reviewer notes",
                 "",
                 "_Check literary rhythm, meaning, and proper noun handling._",
@@ -426,6 +448,7 @@ def write_outputs(
         {
             "chunk_id": chunk["chunk_id"],
             "source_pages": chunk["source_pages"],
+            "boundary_flags": chunk["boundary_flags"],
             "source_quality_score": chunk["source_quality_score"],
             "source_repairs": chunk["source_repairs"],
             "strategy_used": chunk["strategy_used"],
@@ -434,6 +457,9 @@ def write_outputs(
             "foreign_residue_count_before_final": chunk["foreign_residue_count_before_final"],
             "foreign_residue_count_after_final": chunk["foreign_residue_count_after_final"],
             "foreign_residues": chunk["foreign_residues"],
+            "semantic_qa_flags": chunk["semantic_qa_flags"],
+            "fluency_qa_flags": chunk["fluency_qa_flags"],
+            "quality_gate": chunk["quality_gate"],
             "recommendation": chunk["recommendation"],
         }
         for chunk in translated_chunks
@@ -463,6 +489,9 @@ def write_outputs(
     rejects = sum(chunk["recommendation"] == "reject" for chunk in translated_chunks)
     residue_after = sum(chunk["foreign_residue_count_after_final"] for chunk in translated_chunks)
     review_chunks = [chunk["chunk_id"] for chunk in translated_chunks if chunk["recommendation"] != "accept"]
+    boundary_flag_count = sum(len(chunk["boundary_flags"]) for chunk in translated_chunks)
+    semantic_flag_count = sum(len(chunk["semantic_qa_flags"]) for chunk in translated_chunks)
+    fluency_flag_count = sum(len(chunk["fluency_qa_flags"]) for chunk in translated_chunks)
     quality_lines = [
         "# Blood Meridian First 5 Pages Quality Report",
         "",
@@ -474,6 +503,9 @@ def write_outputs(
         f"- Review chunks: `{reviews}`",
         f"- Rejected chunks: `{rejects}`",
         f"- Foreign residues remaining after final pass: `{residue_after}`",
+        f"- Chunk boundary flags: `{boundary_flag_count}`",
+        f"- Literary semantic QA flags: `{semantic_flag_count}`",
+        f"- Turkish fluency QA flags: `{fluency_flag_count}`",
         "",
         "## 2. Pages Extracted",
         "",
@@ -494,7 +526,13 @@ def write_outputs(
         "",
         f"- Remaining residues after final pass: `{residue_after}`",
         "",
-        "## 6. Chunks Requiring Review",
+        "## 6. Literary Semantic and Fluency QA Summary",
+        "",
+        f"- Semantic flags: `{semantic_flag_count}`",
+        f"- Fluency flags: `{fluency_flag_count}`",
+        f"- Boundary flags: `{boundary_flag_count}`",
+        "",
+        "## 7. Chunks Requiring Review",
         "",
     ]
     if review_chunks:
@@ -504,13 +542,13 @@ def write_outputs(
     quality_lines.extend(
         [
             "",
-            "## 7. Known Literary Risks",
+            "## 8. Known Literary Risks",
             "",
             "- This run does not prove literary quality.",
             "- Human review should verify voice, rhythm, and semantic precision.",
             "- Proper noun handling and archaic register still need human attention.",
             "",
-            "## 8. Berkay Review Focus",
+            "## 9. Berkay Review Focus",
             "",
             "- Start with the opening page rhythm and whether fragments remain sharp in Turkish.",
             "- Then check meaning preservation on dense descriptive sentences.",
