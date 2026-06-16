@@ -183,7 +183,7 @@ def main() -> None:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(lines), encoding="utf-8")
     print(f"Benchmark written to: {args.output}")
-    print(f"Improved: {improved}/{len(records)}, Naturalness: {nat_before:.2f} → {nat_after:.2f}")
+    print(f"Improved: {improved}/{len(records)}, Naturalness: {nat_before:.2f} -> {nat_after:.2f}")
 
 
 if __name__ == "__main__":
