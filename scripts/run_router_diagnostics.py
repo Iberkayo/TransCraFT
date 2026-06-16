@@ -112,6 +112,9 @@ def generate_report(result: Dict[str, Any], output_path: Path) -> Path:
         f"- Retire candidates skipped: {summary['retire_candidate_skipped']}",
         f"- Average injected score: {summary['average_injected_score']:.2f}",
         "",
+        "Note: Retire candidate skipped count reflects only persisted memory metadata. "
+        "Hygiene dry-run recommendations are not applied to memory files.",
+        "",
         "## 2. Total Memories Loaded",
         "",
         f"{summary['total_loaded']}",
@@ -207,6 +210,8 @@ def recommendations(summary: Dict[str, Any], decisions: List[Dict[str, Any]]) ->
         lines.append("- Global memory share remains high; tighten relevance thresholds or hygiene more aggressively.")
     if summary["retire_candidate_skipped"] > 0:
         lines.append("- Retire candidates are being kept out of prompt context.")
+    else:
+        lines.append("- Retire candidate count reflects persisted metadata only; dry-run hygiene recommendations are not applied.")
     if summary["promoted_injected"] > 0:
         lines.append("- Promoted memories are successfully reaching prompt context.")
     skipped_reasons = Counter(d.get("reason", "") for d in decisions if d.get("decision") in {"skip", "downrank"})

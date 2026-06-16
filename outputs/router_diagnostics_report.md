@@ -10,6 +10,8 @@
 - Retire candidates skipped: 0
 - Average injected score: 1.75
 
+Note: Retire candidate skipped count reflects only persisted memory metadata. Hygiene dry-run recommendations are not applied to memory files.
+
 ## 2. Total Memories Loaded
 
 83
@@ -99,5 +101,6 @@ _No records._
 ## 11. Recommendations
 
 - Global memory share is within the v0.5 target cap.
+- Retire candidate count reflects persisted metadata only; dry-run hygiene recommendations are not applied.
 - Promoted memories are successfully reaching prompt context.
 - Most common skip/downrank reason: Skipped because keyed memory has no lexical relevance to the source chunk.
