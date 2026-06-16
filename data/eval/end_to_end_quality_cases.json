@@ -1,0 +1,202 @@
+[
+  {
+    "id": "business_relative_clause_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The legacy software is expected to be phased out by the end of Q3, a decision which has left many departments wondering how their daily operations will be affected.",
+    "protected_terms": [],
+    "risk_type": ["long_relative_clause", "business_translationese_risk"],
+    "expected_behavior": "Full chain should split naturally and avoid 'neden oldu' style translationese."
+  },
+  {
+    "id": "noun_stack_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The customer data privacy compliance monitoring system needs to be updated before the audit.",
+    "protected_terms": [],
+    "risk_type": ["noun_stack", "clarity"],
+    "expected_behavior": "Full chain should unpack the noun stack into clear Turkish."
+  },
+  {
+    "id": "passive_double_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The report was reviewed by the committee and was approved after several minor revisions.",
+    "protected_terms": [],
+    "risk_type": ["passive_voice", "double_passive"],
+    "expected_behavior": "Full chain should choose natural formal Turkish passive or active."
+  },
+  {
+    "id": "phrasal_verb_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The support team will follow up with each regional office after the migration is complete.",
+    "protected_terms": [],
+    "risk_type": ["phrasal_verb", "business_register"],
+    "expected_behavior": "Full chain should avoid literal phrasal-verb transfer."
+  },
+  {
+    "id": "corporate_translationese_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "Management wants the rollout to be completed quickly, but not at the expense of customer trust.",
+    "protected_terms": ["customer trust"],
+    "risk_type": ["business_translationese_risk", "idiomatic_balance"],
+    "expected_behavior": "Full chain should preserve the contrast and avoid stiff corporate wording."
+  },
+  {
+    "id": "academic_abstract_001",
+    "genre": "academic",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "This study examines how remote collaboration affects decision quality in distributed engineering teams.",
+    "protected_terms": [],
+    "risk_type": ["academic_abstract", "terminology", "naturalness"],
+    "expected_behavior": "Full chain should keep academic claim precise and readable."
+  },
+  {
+    "id": "literary_fragments_001",
+    "genre": "literary",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "He stood at the door. Silent. Waiting.",
+    "protected_terms": [],
+    "risk_type": ["literary_fragment", "fragment_preservation", "rhythm"],
+    "expected_behavior": "Full chain should preserve fragments and avoid over-explaining."
+  },
+  {
+    "id": "idiom_metaphor_001",
+    "genre": "general",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The announcement threw cold water on the team's optimism.",
+    "protected_terms": [],
+    "risk_type": ["idiom_or_metaphor", "literalness"],
+    "expected_behavior": "Full chain should use natural Turkish idiom, not literal wording."
+  },
+  {
+    "id": "pronoun_heavy_001",
+    "genre": "general",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "She told him that she would send him the file when she finished reviewing it.",
+    "protected_terms": [],
+    "risk_type": ["pronoun_heavy", "ambiguity"],
+    "expected_behavior": "Full chain should reduce unnecessary pronouns."
+  },
+  {
+    "id": "preposition_heavy_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The update from the finance team about the delay in the payment process arrived after the meeting.",
+    "protected_terms": [],
+    "risk_type": ["preposition_heavy", "noun_stack"],
+    "expected_behavior": "Full chain should unpack prepositional phrases into natural Turkish."
+  },
+  {
+    "id": "nested_relative_clause_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The vendor that manages the platform which stores regional invoices will be replaced next month.",
+    "protected_terms": [],
+    "risk_type": ["long_relative_clause", "nested_relative_clause"],
+    "expected_behavior": "Full chain should split or reorder nested relative clauses."
+  },
+  {
+    "id": "academic_noun_pile_001",
+    "genre": "academic",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The energy market volatility prediction accuracy evaluation framework is tested across three datasets.",
+    "protected_terms": [],
+    "risk_type": ["noun_stack", "academic_nominalization"],
+    "expected_behavior": "Full chain should unpack the noun pile while preserving academic claim."
+  },
+  {
+    "id": "literary_implied_subject_001",
+    "genre": "literary",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "Went back to the window. No answer. Only the rain.",
+    "protected_terms": [],
+    "risk_type": ["literary_fragment", "implied_subject", "rhythm"],
+    "expected_behavior": "Full chain should preserve implied subject and fragment rhythm."
+  },
+  {
+    "id": "metaphor_nonliteral_001",
+    "genre": "general",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The failed pilot opened the door to a more careful redesign.",
+    "protected_terms": [],
+    "risk_type": ["idiom_or_metaphor", "literalness"],
+    "expected_behavior": "Full chain should avoid literal door imagery if it sounds unnatural."
+  },
+  {
+    "id": "clear_split_required_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The new policy applies to all vendors who process customer records, which means the procurement team must update every active contract this month.",
+    "protected_terms": [],
+    "risk_type": ["long_relative_clause", "business_translationese_risk"],
+    "expected_behavior": "Full chain should split the policy scope and required action."
+  },
+  {
+    "id": "numbers_dates_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "On December 25, 2024, the company paid 150,000 TL for the license renewal.",
+    "protected_terms": ["150,000 TL", "December 25, 2024"],
+    "risk_type": ["number_date_preservation"],
+    "expected_behavior": "Full chain should preserve numbers and convert date to Turkish format."
+  },
+  {
+    "id": "meaning_preservation_trap_001",
+    "genre": "general",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The treatment reduced symptoms by 40 percent, but caused fatigue in 20 percent of patients.",
+    "protected_terms": ["40 percent", "20 percent"],
+    "risk_type": ["number_preservation", "meaning_preservation"],
+    "expected_behavior": "Full chain must NOT swap the percentages or drop one."
+  },
+  {
+    "id": "no_rewrite_needed_001",
+    "genre": "literary",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The rain fell softly on the roof.",
+    "protected_terms": [],
+    "risk_type": ["no_risk", "leave_unchanged"],
+    "expected_behavior": "Full chain should NOT over-edit this simple literary sentence."
+  },
+  {
+    "id": "target_naturalness_opportunity_001",
+    "genre": "business",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "The delay has left customers wondering how their orders will be affected.",
+    "protected_terms": [],
+    "risk_type": ["translationese", "target_naturalness"],
+    "expected_behavior": "Full chain's target naturalness pass should avoid 'merak etmesine neden oldu'."
+  },
+  {
+    "id": "aggressive_rewrite_danger_001",
+    "genre": "literary",
+    "source_language": "en_US",
+    "target_language": "tr_TR",
+    "source_text": "Blood. Time. The desert stretched before them like a white page.",
+    "protected_terms": [],
+    "risk_type": ["literary_fragment", "over_editing_risk"],
+    "expected_behavior": "Full chain should preserve sparse literary fragments; NOT expand or explain them."
+  }
+]
