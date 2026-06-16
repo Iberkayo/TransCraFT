@@ -96,7 +96,7 @@ class TranslationStrategyPlanner:
         target_rules = self._target_rules(target_profile, genre)
         reconstruction_notes = self._reconstruction_notes(genre, target_profile, style_contract)
         translator_instructions = self._translator_instructions(genre, memory_context, work_id)
-        critic_checklist = self._critic_checklist(genre)
+        critic_checklist = self._critic_checklist(genre, target_profile)
 
         return {
             "source_language": source_profile.get("language_code", "en_US"),
@@ -104,7 +104,7 @@ class TranslationStrategyPlanner:
             "text_type": text_type,
             "tone": tone,
             "register": register,
-            "audience": "general Turkish readers" if text_type != "technical" else "technical Turkish readers",
+            "audience": self._audience(target_profile, text_type),
             "literalness_level": literalness,
             "sentence_reconstruction_strategy": self._sentence_strategy(genre),
             "localization_strategy": self._localization_strategy(genre),
@@ -165,13 +165,13 @@ class TranslationStrategyPlanner:
     def _structural_risks(self, source_text: str, target_profile: Dict[str, Any]) -> List[str]:
         risks = []
         if len(source_text.split()) > 35:
-            risks.append("Long English sentence may need splitting for Turkish readability.")
+            risks.append("Long source sentence may need splitting for target-language readability.")
         if re.search(r"\b(which|that|who|whose|where)\b", source_text or "", re.IGNORECASE):
-            risks.append("English relative clause may create heavy Turkish participle structures.")
+            risks.append("Source relative clause may create heavy target-language structures.")
         if re.search(r"\bof\b.+\bof\b", source_text or "", re.IGNORECASE):
-            risks.append("English noun/preposition stack may need unpacking.")
+            risks.append("Source noun/preposition stack may need unpacking.")
         if "translationese_patterns_to_avoid" in target_profile:
-            risks.append("Check for Turkish translationese patterns listed in the target profile.")
+            risks.append("Check for translationese patterns listed in the target profile.")
         return risks[:6]
 
     def _target_rules(self, target_profile: Dict[str, Any], genre: str) -> List[str]:
@@ -179,17 +179,24 @@ class TranslationStrategyPlanner:
         genre_rules = target_profile.get("genre_preferences", {}).get((genre or "general"), [])
         return (rules + genre_rules)[:10]
 
+    def _audience(self, target_profile: Dict[str, Any], text_type: str) -> str:
+        name = target_profile.get("name") or target_profile.get("language_code") or "target-language"
+        if text_type == "technical":
+            return f"technical {name} readers"
+        return f"general {name} readers"
+
     def _reconstruction_notes(
         self,
         genre: str,
         target_profile: Dict[str, Any],
         style_contract: Optional[Dict[str, Any]],
     ) -> List[str]:
-        notes = [
-            "avoid literal English word order",
-            "drop unnecessary pronouns when Turkish morphology or context is enough",
-            "reconstruct meaning naturally in Turkish before final wording",
-        ]
+        notes = list(target_profile.get("reconstruction_notes", []))
+        if not notes:
+            notes = [
+                "avoid literal source-language word order",
+                "reconstruct meaning naturally in the target language before final wording",
+            ]
         if self._text_type(genre) == "literary_fiction":
             notes.append("preserve sparse rhythm and intentional fragments when style requires it")
         if self._text_type(genre) in {"technical", "academic"}:
@@ -203,7 +210,7 @@ class TranslationStrategyPlanner:
         instructions = [
             "preserve full meaning before polishing style",
             "translate by meaning units, not word by word",
-            "avoid translationese and unnecessary pronoun repetition",
+            "avoid translationese and unnecessary repetition",
             "produce only the target-language translation",
         ]
         if memory_context:
@@ -216,26 +223,27 @@ class TranslationStrategyPlanner:
             instructions.append("prioritize terminology consistency and technical accuracy")
         return instructions
 
-    def _critic_checklist(self, genre: str) -> List[str]:
-        checklist = [
-            "meaning preserved",
-            "Turkish naturalness",
-            "unnecessary pronouns avoided",
-            "translationese patterns avoided",
-            "long relative clause chains avoided",
-            "register consistency",
-            "terminology consistency",
-        ]
+    def _critic_checklist(self, genre: str, target_profile: Dict[str, Any]) -> List[str]:
+        checklist = list(target_profile.get("critic_checklist", []))
+        if not checklist:
+            checklist = [
+                "meaning preserved",
+                "target-language naturalness",
+                "unnecessary repetition avoided",
+                "translationese patterns avoided",
+                "long relative clause chains avoided",
+            ]
+        checklist.extend(["register consistency", "terminology consistency"])
         if self._text_type(genre) == "literary_fiction":
             checklist.append("style and rhythm preservation")
         return checklist
 
     def _sentence_strategy(self, genre: str) -> str:
         if self._text_type(genre) == "literary_fiction":
-            return "Reconstruct sentences for natural Turkish while preserving intentional fragments and rhythm."
+            return "Reconstruct sentences for natural target-language flow while preserving intentional fragments and rhythm."
         if self._text_type(genre) in {"technical", "academic"}:
-            return "Prefer clear Turkish academic sentence boundaries; split long English sentences when helpful."
-        return "Prefer natural Turkish sentence rhythm over literal English syntax."
+            return "Prefer clear target-language sentence boundaries; split long source sentences when helpful."
+        return "Prefer natural target-language rhythm over literal source syntax."
 
     def _localization_strategy(self, genre: str) -> str:
         if self._text_type(genre) in {"technical", "academic"}:
@@ -249,9 +257,9 @@ class TranslationStrategyPlanner:
             "text_type": "general",
             "tone": "natural",
             "register": "natural",
-            "audience": "general Turkish readers",
+            "audience": "general target-language readers",
             "literalness_level": "medium_low",
-            "sentence_reconstruction_strategy": "Prefer natural Turkish reconstruction.",
+            "sentence_reconstruction_strategy": "Prefer natural target-language reconstruction.",
             "localization_strategy": "Localize naturally while preserving meaning.",
             "meaning_units": [],
             "structural_risks": [],
@@ -295,7 +303,7 @@ def build_strategy_prompt_context(strategy: Optional[Dict[str, Any]], language_p
 Meaning units:
 {bullets(strategy.get('meaning_units', []))}
 
-Turkish reconstruction notes:
+Target-language reconstruction notes:
 {bullets(strategy.get('turkish_reconstruction_notes', []))}
 
 Target language profile rules:

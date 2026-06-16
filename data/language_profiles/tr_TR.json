@@ -23,6 +23,17 @@
     "literal English SVO transfer",
     "unnecessary possessive pronoun repetition"
   ],
+  "reconstruction_notes": [
+    "avoid literal English word order",
+    "drop unnecessary pronouns when Turkish morphology or context is enough",
+    "reconstruct meaning naturally in Turkish before final wording"
+  ],
+  "critic_checklist": [
+    "Turkish naturalness",
+    "unnecessary pronouns avoided",
+    "translationese patterns avoided",
+    "long relative clause chains avoided"
+  ],
   "genre_preferences": {
     "literary": [
       "Preserve rhythm, imagery, and intentional fragments.",

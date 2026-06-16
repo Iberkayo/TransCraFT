@@ -9,7 +9,7 @@ class EvaluationSchema(BaseModel):
         description="True if the translation is beautiful, accurate, and ready for publication. False if it needs revisions."
     )
     critique: str = Field(
-        description="Constructive critique in Turkish pointing out specific issues (e.g., mistranslations, awkward wording, idiom misuse). If approved, this should be 'None'."
+        description="Constructive critique in the target language pointing out specific issues (e.g., mistranslations, awkward wording, idiom misuse). If approved, this should be 'None'."
     )
 
 def evaluate_translation(state: TranslationState) -> dict:
@@ -27,6 +27,7 @@ def evaluate_translation(state: TranslationState) -> dict:
     
     source_text = state["source_text"]
     stylized_translation = state["stylized_translation"]
+    target_lang = state.get("target_language", "target language")
     style_guide = state["style_guide"]
     positive_glossary = state.get("positive_glossary", {})
     auto_candidates = state.get("auto_glossary_candidates", {})
@@ -71,7 +72,7 @@ You are extremely strict. If there are factual errors, omitted sentences, or maj
 
 ### Instructions:
 1. Check for **Accuracy**: Did the stylist omit any sentences or alter facts?
-2. Check for **Flow & Naturalness**: Does the Turkish version read naturally, or are there clunky phrasing issues?
+2. Check for **Flow & Naturalness**: Does the {target_lang} version read naturally, or are there clunky phrasing issues?
 3. Check for **Idioms**: Were the idioms adapted appropriately, or did they get translated literally?
 4. Check strategy compliance: unnecessary pronouns, translationese patterns, heavy relative-clause chains, register, terminology, style, and rhythm.
 5. **Approval Logic**: If there are noticeable flow issues or errors, set `is_approved` to False and write a detailed constructive critique. If it is already high quality and ready to publish, set `is_approved` to True.

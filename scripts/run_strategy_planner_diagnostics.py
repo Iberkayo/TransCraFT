@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.tie.language_profile import LanguageProfileLoader
-from src.tie.strategy_planner import TranslationStrategyPlanner
+from src.tie.strategy_planner import TranslationStrategyPlanner, build_strategy_prompt_context
 
 
 DEFAULT_SAMPLES = [
@@ -32,6 +32,11 @@ DEFAULT_SAMPLES = [
         "work_id": "attention_is_all_you_need",
     },
 ]
+
+SMOKE_TEST_SOURCE = (
+    "The legacy software is expected to be phased out by the end of Q3, "
+    "a decision which has left many departments wondering how their daily operations will be affected."
+)
 
 
 def run_diagnostics(samples: List[Dict[str, str]] | None = None) -> Dict[str, Any]:
@@ -57,7 +62,25 @@ def run_diagnostics(samples: List[Dict[str, str]] | None = None) -> Dict[str, An
             }
         )
 
-    return {"records": records, "summary": summarize(records)}
+    smoke_strategy = planner.plan(
+        source_text=SMOKE_TEST_SOURCE,
+        source_language="English",
+        target_language="Turkish",
+        genre="business",
+    )
+    smoke_profile = loader.load_profile("Turkish")
+    smoke = {
+        "source": SMOKE_TEST_SOURCE,
+        "strategy_on_context": build_strategy_prompt_context(smoke_strategy, smoke_profile),
+        "strategy_off_context": "",
+        "observed_difference": (
+            "Strategy ON adds meaning units, target profile rules, reconstruction notes, "
+            "and structural risks. This is prompt-level evidence only; no real translation output was generated."
+        ),
+        "reduced_literalness_claim": "Not proven by this diagnostics run.",
+    }
+
+    return {"records": records, "summary": summarize(records), "smoke": smoke}
 
 
 def summarize(records: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -85,6 +108,9 @@ def generate_report(result: Dict[str, Any], output_path: Path) -> Path:
         "This report validates planning, language-profile loading, and prompt guidance only. "
         "It does not run a full translation-quality benchmark.",
         "",
+        "Fallback strategy was used for all current samples. Quality improvement is not proven here; "
+        "the next evidence step is a small Strategy ON/OFF translation output comparison.",
+        "",
         "## 2. Sample Source Text",
         "",
     ]
@@ -111,7 +137,7 @@ def generate_report(result: Dict[str, Any], output_path: Path) -> Path:
                 "",
                 bullet_list(strategy.get("meaning_units", [])),
                 "",
-                "## 5. Turkish Reconstruction Notes",
+                "## 5. Target-Language Reconstruction Notes",
                 "",
                 bullet_list(strategy.get("turkish_reconstruction_notes", [])),
                 "",
@@ -134,13 +160,31 @@ def generate_report(result: Dict[str, Any], output_path: Path) -> Path:
             ]
         )
 
+    smoke = result["smoke"]
     lines.extend(
         [
-            "## 10. Risks / Limitations",
+            "## 10. Strategy ON/OFF Prompt Smoke Test",
+            "",
+            f"Source: {smoke['source']}",
+            "",
+            "Strategy Planner OFF context:",
+            "",
+            "_None._",
+            "",
+            "Strategy Planner ON context excerpt:",
+            "",
+            fenced_excerpt(smoke["strategy_on_context"]),
+            "",
+            f"Observed difference: {smoke['observed_difference']}",
+            "",
+            f"Reduced literalness: {smoke['reduced_literalness_claim']}",
+            "",
+            "## 11. Risks / Limitations",
             "",
             "- The planner is deterministic and conservative; it does not prove translation quality by itself.",
             "- Strategy quality still depends on translator and critic adherence.",
             "- Current diagnostics cover English to Turkish profiles only.",
+            "- Prompt-level ON/OFF evidence is not a substitute for human review of actual translation outputs.",
             "",
         ]
     )
@@ -152,6 +196,11 @@ def bullet_list(items: List[Any]) -> str:
     if not items:
         return "_None._"
     return "\n".join(f"- {item}" for item in items)
+
+
+def fenced_excerpt(text: str, max_lines: int = 28) -> str:
+    lines = text.splitlines()[:max_lines]
+    return "```text\n" + "\n".join(lines) + "\n```"
 
 
 def main() -> None:
