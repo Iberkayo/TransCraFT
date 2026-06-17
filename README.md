@@ -181,3 +181,11 @@ To run the Pytest verification suite:
 ```bash
 python -m pytest tests/
 ```
+
+---
+
+## Product Roadmap
+
+See:
+- [Interactive Translation Workspace Roadmap](docs/INTERACTIVE_TRANSLATION_WORKSPACE_ROADMAP.md)
+- [Translation Workspace TODO](docs/TRANSLATION_WORKSPACE_TODO.md)
