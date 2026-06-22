@@ -15,8 +15,13 @@ from src.tie.book_ingestion import (
     slugify_book_run_name,
 )
 from src.tie.chunk_stitching import SentenceSafeChunker
-from src.tie.export_pdf import export_translation_pdf
 from src.tie.foreign_residue import ForeignResidueDetector
+from src.tie.layout_export import (
+    BookLayoutExportConfig,
+    BookLayoutUnit,
+    export_book_template_pdf,
+    export_preserve_source_pdf,
+)
 from src.tie.literary_semantic_qa import LiterarySemanticQAChecker
 from src.tie.quality_gate import QualityGate
 from src.tie.revision_checklist import build_and_evaluate
@@ -59,6 +64,12 @@ def build_book_run_config(
     write_side_by_side: bool = False,
     write_quality_report: bool = True,
     write_metadata: bool = True,
+    layout_mode: str = "book-template",
+    page_size: str = "A5",
+    start_at: str = "body",
+    include_front_matter: bool = False,
+    exclude_toc: bool = True,
+    title_page: bool = True,
 ) -> Dict[str, Any]:
     if first_pages is not None and first_words is not None:
         raise ValueError("Choose either first_pages or first_words, not both.")
@@ -71,6 +82,17 @@ def build_book_run_config(
         "words_per_page": words_per_page,
         "chunk_chars": chunk_chars,
         "genre": "literary",
+        "structure": {
+            "start_at": start_at,
+            "include_front_matter": include_front_matter,
+            "exclude_toc": exclude_toc,
+        },
+        "layout": {
+            "requested_mode": layout_mode,
+            "mode": layout_mode.replace("-", "_"),
+            "page_size": page_size,
+            "title_page": title_page,
+        },
         "tm": {
             "enabled": tm_enabled,
             "directory": tm_dir,
@@ -109,18 +131,18 @@ class BookTranslationRunner:
         self.quality_gate = QualityGate()
 
     def run(self, config: Dict[str, Any]) -> BookRunResult:
-        extracted = extract_book_text(
-            config["input_path"],
-            max_pages=config.get("first_pages") if str(config["input_path"]).lower().endswith(".pdf") else None,
-        )
+        extracted = extract_book_text(config["input_path"])
         selected = select_book_range(
             extracted,
             first_pages=config.get("first_pages"),
             first_words=config.get("first_words"),
             words_per_page=config.get("words_per_page", 300),
+            start_at=config["structure"]["start_at"],
+            include_front_matter=config["structure"]["include_front_matter"],
+            exclude_toc=config["structure"]["exclude_toc"],
         )
         cleaned = clean_selected_book_text(selected)
-        source_text = cleaned["cleaned_text"].strip()
+        source_text = "\n\n".join(unit["text"] for unit in cleaned["selected_units"]).strip()
         if not source_text:
             raise ValueError("No translatable text was extracted from the requested range.")
 
@@ -133,8 +155,9 @@ class BookTranslationRunner:
             document_type=extracted["input_format"],
             genre="literary_fiction",
         )
-        chunking = SentenceSafeChunker(max_chars=config["chunk_chars"]).chunk_text(
-            source_text,
+        chunking = _build_structured_chunks(
+            cleaned["selected_units"],
+            max_chars=config["chunk_chars"],
             chunk_id_prefix=run_id,
         )
 
@@ -195,6 +218,9 @@ class BookTranslationRunner:
             chunk_results.append(
                 {
                     "chunk_id": chunk["chunk_id"],
+                    "unit_type": chunk["unit_type"],
+                    "source_page": chunk.get("source_page"),
+                    "bbox": chunk.get("bbox"),
                     "source_text": source_chunk,
                     "translation": translation,
                     "boundary": {
@@ -282,18 +308,29 @@ class BookTranslationRunner:
             "quality_report": None,
             "pdf": None,
         }
-        translations = [item["translation"] for item in chunks]
+        layout_units = [
+            BookLayoutUnit(
+                unit_id=item["chunk_id"],
+                unit_type=item["unit_type"],
+                source_text=item["source_text"],
+                target_text=item["translation"],
+                source_page=item.get("source_page"),
+                bbox=item.get("bbox"),
+            )
+            for item in chunks
+        ]
+        layout = _resolve_layout(config, extracted, chunks)
         if config["outputs"]["markdown"]:
             path = output_dir / "translation.md"
-            path.write_text("\n\n".join(translations), encoding="utf-8")
+            path.write_text(_translation_markdown(extracted, layout_units), encoding="utf-8")
             paths["translation_markdown"] = str(path)
         if config["outputs"]["side_by_side"]:
             path = output_dir / "side_by_side.md"
             lines = ["# Source / Translation Review", ""]
-            for item in chunks:
+            for index, item in enumerate(chunks, start=1):
                 lines.extend(
                     [
-                        f"## {item['chunk_id']}",
+                        f"## Unit {index:03d} — {item['unit_type']}",
                         "",
                         "### Source",
                         "",
@@ -319,7 +356,9 @@ class BookTranslationRunner:
             "source_language": config["source_language"],
             "target_language": config["target_language"],
             "range": selected["range"],
+            "front_matter": selected["front_matter"],
             "page_definition": extracted["page_definition"],
+            "layout": layout,
             "tm_retrieval": config["tm"],
             "source_cleanup": selected["source_cleanup"],
             "source_quality": source_quality,
@@ -341,13 +380,48 @@ class BookTranslationRunner:
             path.write_text(_quality_report(metadata, qa_summary), encoding="utf-8")
             paths["quality_report"] = str(path)
         if config["outputs"]["pdf"]:
-            pdf_result = export_translation_pdf(
-                str(output_dir / "translation.pdf"),
-                translations,
-                metadata,
-                qa_summary,
+            export_config = BookLayoutExportConfig(
+                mode=layout["mode"],
+                page_size=layout["page_size"],
+                title_page=config["layout"]["title_page"],
             )
+            if layout["mode"] == "preserve_source":
+                pdf_result = export_preserve_source_pdf(
+                    str(output_dir / "translation.pdf"),
+                    layout_units,
+                    config["input_path"],
+                    export_config,
+                )
+                if pdf_result.get("fallback_required"):
+                    layout["mode"] = "book_template"
+                    layout["source_layout_preserved"] = False
+                    layout["layout_warnings"].append(pdf_result["warning"])
+                    export_config.mode = "book_template"
+                    export_config.page_size = config["layout"]["page_size"]
+                    pdf_result = export_book_template_pdf(
+                        str(output_dir / "translation.pdf"),
+                        layout_units,
+                        metadata,
+                        qa_summary,
+                        export_config,
+                    )
+            else:
+                pdf_result = export_book_template_pdf(
+                    str(output_dir / "translation.pdf"),
+                    layout_units,
+                    metadata,
+                    qa_summary,
+                    export_config,
+                )
             paths["pdf"] = pdf_result.get("path")
+            metadata["layout"]["overflow_blocks"] = pdf_result.get("overflow_blocks", 0)
+            if pdf_result.get("warning"):
+                metadata["layout"]["layout_warnings"].append(pdf_result["warning"])
+            if config["outputs"]["metadata"]:
+                Path(paths["metadata_json"]).write_text(
+                    json.dumps(metadata, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
         return paths
 
     def _translate_with_existing_agent(self, source_text: str, context: Dict[str, Any]) -> str:
@@ -418,6 +492,19 @@ def _quality_report(metadata: Dict[str, Any], summary: Dict[str, Any]) -> str:
         "",
         "This report contains deterministic guardrails. It is not proof of publication-ready translation quality.",
         "",
+        "## Layout / Structure Summary",
+        "",
+        f"- Layout mode: {metadata['layout']['mode']}",
+        f"- Page size: {metadata['layout']['page_size']}",
+        f"- Front matter skipped: {metadata['layout']['front_matter_skipped']}",
+        f"- TOC skipped: {metadata['layout']['toc_skipped']}",
+        f"- Chapter headings detected: {metadata['layout']['chapter_headings_detected']}",
+        f"- Body units translated: {metadata['layout']['body_units_translated']}",
+        f"- Source layout preservation: {metadata['layout']['source_layout_preserved']}",
+        f"- Layout warnings: {metadata['layout']['layout_warnings'] or 'none'}",
+        "",
+        "PDF layout preservation is best-effort. Translation length can change pagination and line breaks.",
+        "",
         "## Chunk Results",
         "",
     ]
@@ -433,3 +520,99 @@ def _quality_report(metadata: Dict[str, Any], summary: Dict[str, Any]) -> str:
 
 def _word_count(text: str) -> int:
     return len((text or "").split())
+
+
+def _build_structured_chunks(
+    units: List[Dict[str, Any]],
+    max_chars: int,
+    chunk_id_prefix: str,
+) -> Dict[str, Any]:
+    chunks = []
+    pending: List[Dict[str, Any]] = []
+
+    def flush() -> None:
+        if not pending:
+            return
+        text = "\n\n".join(unit["text"] for unit in pending)
+        checked = SentenceSafeChunker(max_chars=max_chars).chunk_text(
+            text,
+            chunk_id_prefix=f"{chunk_id_prefix}_{len(chunks) + 1:03d}",
+        )
+        for chunk in checked["chunks"]:
+            chunks.append(
+                {
+                    **chunk,
+                    "unit_type": "body_paragraph",
+                    "source_page": pending[0].get("source_page"),
+                    "bbox": pending[0].get("bbox") if len(pending) == 1 else None,
+                }
+            )
+        pending.clear()
+
+    for unit in units:
+        if unit["unit_type"] == "chapter_heading":
+            flush()
+            chunks.append(
+                {
+                    "chunk_id": f"{chunk_id_prefix}_{len(chunks) + 1:03d}",
+                    "text": unit["text"],
+                    "unit_type": "chapter_heading",
+                    "source_page": unit.get("source_page"),
+                    "bbox": unit.get("bbox"),
+                    "boundary_flags": [],
+                    "recommendation": "accept",
+                }
+            )
+            continue
+        prospective = "\n\n".join([item["text"] for item in pending] + [unit["text"]])
+        if pending and len(prospective) > max_chars:
+            flush()
+        pending.append(unit)
+    flush()
+    global_flags = [flag for chunk in chunks for flag in chunk.get("boundary_flags", [])]
+    recommendation = "review" if global_flags else "accept"
+    return {"chunks": chunks, "global_flags": global_flags, "recommendation": recommendation}
+
+
+def _resolve_layout(
+    config: Dict[str, Any],
+    extracted: Dict[str, Any],
+    chunks: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    requested = config["layout"]["mode"]
+    warnings = []
+    mode = requested
+    if requested == "preserve_source" and extracted["input_format"] != "pdf":
+        mode = "book_template"
+        warnings.append("preserve-source is PDF-only; fell back to book-template.")
+    page_size = "source" if mode == "preserve_source" else config["layout"]["page_size"]
+    front = config["structure"]
+    return {
+        "requested_mode": requested,
+        "mode": mode,
+        "page_size": page_size,
+        "source_layout_preserved": mode == "preserve_source",
+        "front_matter_skipped": not front["include_front_matter"],
+        "toc_skipped": front["exclude_toc"],
+        "chapter_headings_detected": sum(
+            chunk["unit_type"] == "chapter_heading" for chunk in chunks
+        ),
+        "body_units_translated": sum(
+            chunk["unit_type"] == "body_paragraph" for chunk in chunks
+        ),
+        "layout_warnings": warnings,
+        "layout_preservation": "best_effort" if mode == "preserve_source" else "logical_structure",
+    }
+
+
+def _translation_markdown(
+    extracted: Dict[str, Any],
+    units: List[BookLayoutUnit],
+) -> str:
+    lines = [f"# {extracted.get('title') or 'Translated Book'}", ""]
+    for unit in units:
+        if unit.unit_type == "chapter_heading":
+            lines.extend([f"## {unit.target_text.strip()}", ""])
+        else:
+            lines.extend([unit.target_text.strip(), ""])
+    return "\n".join(lines).strip() + "\n"

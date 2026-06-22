@@ -202,6 +202,6 @@ See [docs/TRANSLATION_MEMORY_RETRIEVAL.md](docs/TRANSLATION_MEMORY_RETRIEVAL.md)
 
 ## Generic Book Translation Runner
 
-TransCraft can translate a bounded range from local PDF, EPUB, TXT, or Markdown input and produce local review artifacts.
+TransCraft can translate a structure-aware bounded range from local PDF, EPUB, TXT, or Markdown input and produce book-template or best-effort source-layout PDF artifacts.
 
 See [docs/GENERIC_BOOK_TRANSLATION_RUNNER.md](docs/GENERIC_BOOK_TRANSLATION_RUNNER.md).
