@@ -27,6 +27,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tm-min-confidence", choices=["high", "medium", "low"], default="high")
     parser.add_argument("--no-tm", action="store_true")
     parser.add_argument("--output-root", default="outputs/book_runs")
+    parser.add_argument("--layout", choices=["book-template", "preserve-source"], default="book-template")
+    parser.add_argument("--page-size", default="A5")
+    parser.add_argument("--start-at", choices=["body", "beginning"], default="body")
+    parser.add_argument("--include-front-matter", action="store_true")
+    parser.add_argument("--exclude-toc", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--no-title-page", action="store_true")
     parser.add_argument("--pdf", action="store_true")
     parser.add_argument("--md", action="store_true")
     parser.add_argument("--side-by-side", action="store_true")
@@ -58,11 +64,18 @@ def main() -> int:
         write_side_by_side=args.side_by_side,
         write_quality_report=args.quality_report if explicit_outputs else True,
         write_metadata=args.metadata if explicit_outputs else True,
+        layout_mode=args.layout,
+        page_size=args.page_size,
+        start_at=args.start_at,
+        include_front_matter=args.include_front_matter,
+        exclude_toc=args.exclude_toc,
+        title_page=not args.no_title_page,
     )
     result = BookTranslationRunner().run(config)
     print(f"Run: {result.run_id}")
     print(f"Chunks: {result.chunks_translated}")
     print(f"Recommendation: {result.recommendation}")
+    print(f"Layout: {config['layout']['mode']}")
     print(f"Output directory: {Path(result.output_dir)}")
     return 0
 

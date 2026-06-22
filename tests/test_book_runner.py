@@ -108,3 +108,51 @@ def test_pdf_export_writes_unicode_output(tmp_path: Path):
 
     assert result["written"] is True
     assert Path(result["path"]).stat().st_size > 0
+
+
+def test_output_pdf_uses_layout_mode(tmp_path: Path):
+    source = tmp_path / "layout.txt"
+    source.write_text("CHAPTER I\n\nA complete source paragraph for layout testing.", encoding="utf-8")
+    config = build_book_run_config(
+        str(source),
+        first_words=30,
+        tm_enabled=False,
+        output_root=str(tmp_path / "outputs"),
+        write_pdf=True,
+        layout_mode="book-template",
+    )
+    result = BookTranslationRunner(translator=_translator).run(config)
+    metadata = json.loads(Path(result.output_paths["metadata_json"]).read_text(encoding="utf-8"))
+    assert Path(result.output_paths["pdf"]).exists()
+    assert metadata["layout"]["mode"] == "book_template"
+
+
+def test_quality_report_contains_layout_summary(tmp_path: Path):
+    source = tmp_path / "report.txt"
+    source.write_text("A complete source paragraph for quality report testing.", encoding="utf-8")
+    config = build_book_run_config(
+        str(source),
+        first_words=30,
+        tm_enabled=False,
+        output_root=str(tmp_path / "outputs"),
+    )
+    result = BookTranslationRunner(translator=_translator).run(config)
+    report = Path(result.output_paths["quality_report"]).read_text(encoding="utf-8")
+    assert "## Layout / Structure Summary" in report
+    assert "PDF layout preservation is best-effort" in report
+
+
+def test_preserve_source_layout_falls_back_for_epub_runner(tmp_path: Path):
+    source = tmp_path / "fixture.txt"
+    source.write_text("A complete source paragraph for fallback testing.", encoding="utf-8")
+    config = build_book_run_config(
+        str(source),
+        first_words=30,
+        tm_enabled=False,
+        output_root=str(tmp_path / "outputs"),
+        layout_mode="preserve-source",
+    )
+    result = BookTranslationRunner(translator=_translator).run(config)
+    metadata = json.loads(Path(result.output_paths["metadata_json"]).read_text(encoding="utf-8"))
+    assert metadata["layout"]["mode"] == "book_template"
+    assert metadata["layout"]["layout_warnings"]
