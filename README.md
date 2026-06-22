@@ -189,3 +189,11 @@ python -m pytest tests/
 TransCraft can build local, private EN/TR alignment artifacts from paired source/target documents.
 
 See [docs/PARALLEL_CORPUS_ALIGNMENT.md](docs/PARALLEL_CORPUS_ALIGNMENT.md).
+
+---
+
+## Translation Memory Retrieval
+
+TransCraft can retrieve local private translation-memory references from previously aligned EN/TR documents.
+
+See [docs/TRANSLATION_MEMORY_RETRIEVAL.md](docs/TRANSLATION_MEMORY_RETRIEVAL.md).
