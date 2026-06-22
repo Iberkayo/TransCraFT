@@ -197,3 +197,11 @@ See [docs/PARALLEL_CORPUS_ALIGNMENT.md](docs/PARALLEL_CORPUS_ALIGNMENT.md).
 TransCraft can retrieve local private translation-memory references from previously aligned EN/TR documents.
 
 See [docs/TRANSLATION_MEMORY_RETRIEVAL.md](docs/TRANSLATION_MEMORY_RETRIEVAL.md).
+
+---
+
+## Generic Book Translation Runner
+
+TransCraft can translate a bounded range from local PDF, EPUB, TXT, or Markdown input and produce local review artifacts.
+
+See [docs/GENERIC_BOOK_TRANSLATION_RUNNER.md](docs/GENERIC_BOOK_TRANSLATION_RUNNER.md).
