@@ -26,6 +26,7 @@ def main() -> int:
         "text": "",
         "units": [
             {"text": "Copyright 2026 Synthetic Publisher"},
+            {"text": "/ornament20 /ornament20"},
             {"text": "Contents\nChapter I .... 1\nChapter II .... 7\nChapter III .... 13"},
             {"text": "CHAPTER I"},
             {"text": "This synthetic paragraph is deliberately long enough to qualify as a strong body paragraph for deterministic structure diagnostics."},
@@ -62,6 +63,8 @@ def main() -> int:
                 f"- front matter detection tested: {'passed' if any(unit['unit_type'] in {'front_matter', 'title_page'} for unit in structured) else 'failed'}",
                 f"- TOC detection tested: {'passed' if selected['front_matter']['toc_units_detected'] else 'failed'}",
                 f"- chapter heading detection tested: {'passed' if any(unit['unit_type'] == 'chapter_heading' for unit in structured) else 'failed'}",
+                f"- body-start scoring tested: {'passed' if selected['front_matter']['body_start_confidence'] == 'high' else 'failed'}",
+                f"- ornament cleanup tested: {'passed' if selected['front_matter']['ornament_units_removed'] else 'failed'}",
                 f"- book-template PDF path generation tested: {'passed' if template['written'] else 'skipped: no Unicode font'}",
                 f"- preserve-source fallback tested: {'passed' if fallback.get('fallback_required') else 'failed'}",
                 "",

@@ -156,3 +156,40 @@ def test_preserve_source_layout_falls_back_for_epub_runner(tmp_path: Path):
     metadata = json.loads(Path(result.output_paths["metadata_json"]).read_text(encoding="utf-8"))
     assert metadata["layout"]["mode"] == "book_template"
     assert metadata["layout"]["layout_warnings"]
+
+
+def test_body_start_metadata_contains_confidence(tmp_path: Path):
+    source = tmp_path / "body.txt"
+    source.write_text(
+        "Copyright 2026 Example Publisher\n\nCHAPTER I\n\n"
+        "This opening narrative paragraph contains enough words to be recognized as the main body in a synthetic fixture.",
+        encoding="utf-8",
+    )
+    config = build_book_run_config(
+        str(source),
+        first_words=50,
+        tm_enabled=False,
+        output_root=str(tmp_path / "outputs"),
+    )
+    result = BookTranslationRunner(translator=_translator).run(config)
+    metadata = json.loads(Path(result.output_paths["metadata_json"]).read_text(encoding="utf-8"))
+    assert metadata["front_matter"]["body_start_confidence"] in {"high", "medium", "low"}
+    assert metadata["front_matter"]["body_start_index"] == 1
+
+
+def test_quality_report_contains_body_start_summary(tmp_path: Path):
+    source = tmp_path / "summary.txt"
+    source.write_text(
+        "CHAPTER I\n\nThis opening narrative paragraph contains enough words for the body-start quality report fixture.",
+        encoding="utf-8",
+    )
+    config = build_book_run_config(
+        str(source),
+        first_words=50,
+        tm_enabled=False,
+        output_root=str(tmp_path / "outputs"),
+    )
+    result = BookTranslationRunner(translator=_translator).run(config)
+    report = Path(result.output_paths["quality_report"]).read_text(encoding="utf-8")
+    assert "## Body Start / Front Matter Summary" in report
+    assert "Body start confidence:" in report

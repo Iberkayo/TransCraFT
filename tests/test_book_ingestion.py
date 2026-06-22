@@ -49,3 +49,54 @@ def test_first_words_and_pages_are_mutually_exclusive(tmp_path: Path):
 
 def test_slug_is_generic_and_filesystem_safe():
     assert slugify_book_run_name("A Generic Book!.epub") == "a_generic_book"
+
+
+def _pdf_extracted(units):
+    return {
+        "input_path": "synthetic.pdf",
+        "input_format": "pdf",
+        "title": "Synthetic",
+        "author": None,
+        "page_definition": "physical_pdf_pages",
+        "units": units,
+        "text": "\n\n".join(unit["text"] for unit in units),
+    }
+
+
+def test_first_pages_count_from_body_start_for_pdf():
+    units = [
+        {"text": "Copyright 2026 Example Publisher", "source_page": 1},
+        {"text": "Other Works by the Author", "source_page": 2},
+        {"text": "Earlier Title", "source_page": 3},
+        {"text": "CHAPTER I", "source_page": 9},
+    ]
+    units.extend(
+        {
+            "text": f"This sustained body paragraph belongs to physical source page {page} and contains enough words for deterministic classification.",
+            "source_page": page,
+        }
+        for page in range(9, 15)
+    )
+    selected = select_book_range(_pdf_extracted(units), first_pages=5, start_at="body")
+    assert selected["range"]["mode"] == "first_physical_pages_after_body_start"
+    assert selected["range"]["source_page_start"] == 9
+    assert selected["range"]["source_page_end"] == 13
+    assert max(unit["source_page"] for unit in selected["selected_units"]) == 13
+
+
+def test_first_pages_beginning_counts_from_page_one():
+    units = [
+        {"text": "Copyright 2026 Example Publisher", "source_page": 1},
+        {"text": "A sufficiently long front page paragraph used for deterministic page selection testing.", "source_page": 2},
+        {"text": "CHAPTER I", "source_page": 9},
+    ]
+    selected = select_book_range(
+        _pdf_extracted(units),
+        first_pages=5,
+        start_at="beginning",
+        include_front_matter=True,
+        exclude_toc=False,
+    )
+    assert selected["range"]["mode"] == "first_physical_pages_from_beginning"
+    assert selected["range"]["source_page_start"] == 1
+    assert selected["range"]["source_page_end"] == 5
