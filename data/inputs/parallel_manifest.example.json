@@ -1,0 +1,11 @@
+{
+  "pairs": [
+    {
+      "pair_id": "example_book",
+      "source_path": "data/inputs/EN/example_source.pdf",
+      "target_path": "data/inputs/TR/example_target.pdf",
+      "source_lang": "EN",
+      "target_lang": "TR"
+    }
+  ]
+}
