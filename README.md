@@ -181,3 +181,11 @@ To run the Pytest verification suite:
 ```bash
 python -m pytest tests/
 ```
+
+---
+
+## Parallel Corpus Alignment
+
+TransCraft can build local, private EN/TR alignment artifacts from paired source/target documents.
+
+See [docs/PARALLEL_CORPUS_ALIGNMENT.md](docs/PARALLEL_CORPUS_ALIGNMENT.md).
