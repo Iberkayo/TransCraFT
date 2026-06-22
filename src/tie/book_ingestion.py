@@ -7,7 +7,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from src.tie.book_structure import build_structured_book_units
+from src.tie.book_structure import build_structured_book_units, find_body_start
 from src.tie.source_cleanup import SourceExtractionCleaner
 
 
@@ -191,18 +191,29 @@ def select_book_range(
     input_format = extracted["input_format"]
     if input_format == "pdf" and first_pages is not None:
         available_pages = [unit.get("source_page") for unit in selected_candidates if unit.get("source_page")]
-        first_source_page = min(available_pages) if available_pages else 1
+        first_source_page = (
+            1
+            if start_at == "beginning"
+            else (min(available_pages) if available_pages else 1)
+        )
         last_source_page = first_source_page + first_pages - 1
         selected_units = [
             unit
             for unit in selected_candidates
-            if unit.get("source_page") is None or unit.get("source_page") <= last_source_page
+            if unit.get("source_page") is None
+            or first_source_page <= unit.get("source_page") <= last_source_page
         ]
         text = "\n\n".join(unit["text"] for unit in selected_units)
         range_data = {
-            "mode": "first_physical_pages",
+            "mode": (
+                "first_physical_pages_after_body_start"
+                if start_at == "body"
+                else "first_physical_pages_from_beginning"
+            ),
             "requested_pages": first_pages,
             "selected_pages": len(set(unit.get("source_page") for unit in selected_units if unit.get("source_page"))),
+            "source_page_start": first_source_page,
+            "source_page_end": last_source_page,
             "first_source_page": first_source_page,
             "words_per_page": None,
             "selected_word_count": _word_count(text),
@@ -228,6 +239,11 @@ def select_book_range(
             "estimated_page_equivalents": round(_word_count(text) / words_per_page, 2),
         }
 
+    structure_summary = _finalize_structure_summary(
+        structure_summary,
+        structured,
+        selected_units,
+    )
     return {
         **extracted,
         "selected_text": text.strip(),
@@ -267,30 +283,28 @@ def _filter_structured_units(
     exclude_toc: bool,
 ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
     first_body = 0
+    body_start = {"index": 0, "confidence": "explicit", "score": None}
     if start_at == "body":
-        for index, unit in enumerate(units):
-            if unit["unit_type"] in {"chapter_heading", "body_paragraph"}:
-                first_body = index
-                break
+        body_start = find_body_start(units)
+        first_body = body_start["index"]
     candidates = units[first_body:] if start_at == "body" else list(units)
     selected = []
-    skipped_front = 0
-    skipped_toc = 0
     for unit in candidates:
         if exclude_toc and unit["unit_type"] == "table_of_contents":
-            skipped_toc += 1
             continue
         if not include_front_matter and unit["unit_type"] in {"front_matter", "title_page"}:
-            skipped_front += 1
             continue
         if unit["unit_type"] in {"blank", "page_header", "page_footer"}:
             continue
         selected.append(unit)
     skipped_before_body = first_body if start_at == "body" else 0
-    skipped_front += sum(
-        unit["unit_type"] in {"front_matter", "title_page"} for unit in units[:skipped_before_body]
+    skipped_front = sum(
+        unit["unit_type"] not in {"table_of_contents", "blank", "page_header", "page_footer"}
+        for unit in units[:skipped_before_body]
     )
-    skipped_toc += sum(unit["unit_type"] == "table_of_contents" for unit in units[:skipped_before_body])
+    skipped_toc = sum(
+        unit["unit_type"] == "table_of_contents" for unit in units[:skipped_before_body]
+    )
     return selected, {
         "toc_units_detected": sum(unit["unit_type"] == "table_of_contents" for unit in units),
         "front_matter_units_detected": sum(
@@ -299,8 +313,50 @@ def _filter_structured_units(
         "front_matter_units_skipped": skipped_front,
         "toc_units_skipped": skipped_toc,
         "start_at": start_at,
+        "body_start_index": first_body,
+        "body_start_confidence": body_start["confidence"],
+        "body_start_score": body_start["score"],
         "include_front_matter": include_front_matter,
         "exclude_toc": exclude_toc,
+        "ornament_units_removed": sum(
+            1 for unit in units if unit.get("ornament_tokens_removed", 0) > 0
+        ),
+        "ornament_tokens_removed": sum(
+            unit.get("ornament_tokens_removed", 0) for unit in units
+        ),
+    }
+
+
+def _finalize_structure_summary(
+    summary: Dict[str, Any],
+    structured: List[Dict[str, Any]],
+    selected_units: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    selected_ids = {unit.get("unit_id") for unit in selected_units}
+    selected_indexes = [
+        index for index, unit in enumerate(structured) if unit.get("unit_id") in selected_ids
+    ]
+    last_index = max(selected_indexes) if selected_indexes else summary["body_start_index"]
+    relevant = structured[: last_index + 1]
+    selected_id_set = {unit.get("unit_id") for unit in selected_units}
+    skipped_relevant = [
+        unit for unit in relevant if unit.get("unit_id") not in selected_id_set
+    ]
+    return {
+        **summary,
+        "front_matter_units_skipped": sum(
+            unit["unit_type"] in {"front_matter", "title_page", "unknown"}
+            for unit in skipped_relevant
+        ),
+        "toc_units_skipped": sum(
+            unit["unit_type"] == "table_of_contents" for unit in skipped_relevant
+        ),
+        "ornament_units_removed": sum(
+            unit.get("ornament_tokens_removed", 0) > 0 for unit in relevant
+        ),
+        "ornament_tokens_removed": sum(
+            unit.get("ornament_tokens_removed", 0) for unit in relevant
+        ),
     }
 
 

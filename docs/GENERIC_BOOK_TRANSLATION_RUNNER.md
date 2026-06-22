@@ -16,6 +16,10 @@ Use `--first-words` when an exact word-based range is preferred. `--first-pages`
 
 By default, translation starts at the first likely chapter heading or strong body paragraph and excludes detected table-of-contents/front-matter units. Detection is heuristic and skipped units remain recorded in metadata.
 
+Body start uses generic scoring across chapter/part headings, journal or letter headings, date headers, sustained narrative paragraphs, and negative front-matter/list signals. For PDF input, `--first-pages` is counted from the detected body-start page when `--start-at body` is active.
+
+Decorative extraction tokens matching `/ornament` followed by digits are removed before classification and translation. Other slash-delimited text is left unchanged.
+
 Use `--start-at beginning --include-front-matter --no-exclude-toc` to intentionally translate from the beginning.
 
 ## Layout Modes

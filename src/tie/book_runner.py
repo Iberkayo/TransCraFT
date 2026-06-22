@@ -505,9 +505,30 @@ def _quality_report(metadata: Dict[str, Any], summary: Dict[str, Any]) -> str:
         "",
         "PDF layout preservation is best-effort. Translation length can change pagination and line breaks.",
         "",
-        "## Chunk Results",
+        "## Body Start / Front Matter Summary",
+        "",
+        f"- Start mode: {metadata['front_matter']['start_at']}",
+        f"- Body start confidence: {metadata['front_matter']['body_start_confidence']}",
+        f"- Front matter units skipped: {metadata['front_matter']['front_matter_units_skipped']}",
+        f"- TOC units skipped: {metadata['front_matter']['toc_units_skipped']}",
+        f"- Ornament units removed: {metadata['front_matter']['ornament_units_removed']}",
+        f"- Source page start: {metadata['range'].get('source_page_start', 'n/a')}",
+        f"- Source page end: {metadata['range'].get('source_page_end', 'n/a')}",
         "",
     ]
+    if metadata["front_matter"]["body_start_confidence"] == "low":
+        lines.extend(
+            [
+                "Body start was detected with low confidence. Review selected source range before trusting translation.",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## Chunk Results",
+            "",
+        ]
+    )
     for chunk in metadata["chunks"]:
         lines.append(
             f"- `{chunk['chunk_id']}`: {chunk['quality_gate']['recommendation']} "
