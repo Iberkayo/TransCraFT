@@ -65,7 +65,7 @@ def test_blind_labels_are_seeded_and_reversible():
     review1, key1 = _make_blind_review(left, right, seed=7, dry_run=False)
     review2, key2 = _make_blind_review(left, right, seed=7, dry_run=False)
     assert review1 == review2 and key1 == key2
-    assert sorted(key1.values()) == ["baseline", "direct"]
+    assert sorted(key1["passage_001"].values()) == ["baseline", "direct"]
     assert "baseline" not in review1.lower()
     assert "direct" not in review1.lower()
 
