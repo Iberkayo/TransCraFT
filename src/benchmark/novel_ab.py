@@ -247,6 +247,28 @@ def run_novel_ab(
     (destination / "answer_key.json").write_text(
         json.dumps(answer_key, indent=2), encoding="utf-8"
     )
+    human_scores_template = {
+        "instructions": (
+            "Fill 1-5 integer scores for both candidates. "
+            "Preference must be A, B, or tie. "
+            "Do not reveal answer_key.json until after scoring."
+        ),
+        "passages": [
+            {
+                "passage_id": key,
+                "accuracy": {"A": None, "B": None},
+                "naturalness": {"A": None, "B": None},
+                "literary_voice": {"A": None, "B": None},
+                "preference": None,
+                "notes": "",
+            }
+            for key in answer_key
+        ],
+    }
+    (destination / "human_scores.template.json").write_text(
+        json.dumps(human_scores_template, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     report: dict[str, Any] = {
         "status": "dry_run_no_model_calls" if dry_run else "awaiting_human_review",
@@ -295,4 +317,5 @@ def run_novel_ab(
     report["output_dir"] = str(destination)
     report["blind_review_file"] = str(destination / "blind_review.md")
     report["answer_key_file"] = str(destination / "answer_key.json")
+    report["human_scores_template"] = str(destination / "human_scores.template.json")
     return report
