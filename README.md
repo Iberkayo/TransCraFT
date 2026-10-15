@@ -205,3 +205,15 @@ See [docs/TRANSLATION_MEMORY_RETRIEVAL.md](docs/TRANSLATION_MEMORY_RETRIEVAL.md)
 TransCraft can translate a structure-aware bounded range from local PDF, EPUB, TXT, or Markdown input and produce book-template or best-effort source-layout PDF artifacts.
 
 See [docs/GENERIC_BOOK_TRANSLATION_RUNNER.md](docs/GENERIC_BOOK_TRANSLATION_RUNNER.md).
+
+---
+
+## Novel translation model A/B (experimental branch)
+
+On `experiment/novel-translation-ab`, run a reproducible blind comparison
+of the **current generic Book Runner** against a selected direct OpenAI/Claude
+translation model, using identical passages and offline smoke tests.
+
+See [docs/NOVEL_TRANSLATION_AB.md](docs/NOVEL_TRANSLATION_AB.md).
+The full LangGraph/TIE workflow is **not** part of this first A/B baseline,
+and no model is declared the winner without real human review.
