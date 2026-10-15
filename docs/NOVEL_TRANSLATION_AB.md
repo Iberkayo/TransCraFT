@@ -41,7 +41,7 @@ use an available model ID from your provider's current documentation.
 ## 1. Smoke test: no API calls or cost
 
 ```bash
-python -m pytest tests/test_novel_ab.py -q
+python -m pytest tests/test_novel_ab.py tests/test_score_novel_ab.py -q
 python scripts/compare_novel_ab.py \
   --input data/inputs/your_novel.epub \
   --first-words 1000 \
@@ -94,6 +94,7 @@ Find the new folder at `outputs/novel_ab/<run_id>/`:
 | --- | --- |
 | `blind_review.md` | English source + Candidate A/B, order independently randomized by passage, scorecard |
 | `answer_key.json` | Reveals which model generated A/B for each passage — do not open yet |
+| `human_scores.template.json` | Fillable A/B ratings and preference per passage; copy before editing |
 | `comparison.json` | Run configuration, elapsed seconds and counts; no fabricated model ranking |
 | `baseline/.../translation.md` | Existing generic Book Runner's output |
 | `direct/.../translation.md` | Direct model's output |
@@ -103,6 +104,20 @@ Ask a fluent bilingual reader to score *fidelity, Turkish naturalness,
 literary voice, dialogue, paragraph preservation, omissions and invented
 meaning*. Record their preference before revealing `answer_key.json`.
 For a stronger claim, repeat on multiple genres with more than one reviewer.
+
+After scoring, save a filled-in copy of the JSON score template (for example
+`human_scores.json`), and **only then** aggregate the blinded human scores:
+
+```bash
+python scripts/score_novel_ab.py \
+  --run-dir outputs/novel_ab/YOUR_RUN_ID \
+  --scores outputs/novel_ab/YOUR_RUN_ID/human_scores.json
+```
+
+The scoring script reveals the arm mapping only for aggregation and writes
+`human_review_summary.json` and `human_review_summary.md`. It refuses
+to score dry-run placeholders or incomplete human scorecards. Keep the
+answer key concealed from reviewers until their submissions are final.
 
 **Do not interpret** deterministic QA recommendations or word counts as an
 automatic proof that either model won. This tool records wall-clock time,
