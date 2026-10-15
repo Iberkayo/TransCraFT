@@ -1,0 +1,30 @@
+name: Novel A/B experiment checks
+
+on:
+  push:
+    branches:
+      - experiment/novel-translation-ab
+    paths:
+      - 'src/benchmark/**'
+      - 'scripts/compare_novel_ab.py'
+      - 'tests/test_novel_ab.py'
+      - '.github/workflows/novel-ab.yml'
+  pull_request:
+    paths:
+      - 'src/benchmark/**'
+      - 'scripts/compare_novel_ab.py'
+      - 'tests/test_novel_ab.py'
+      - '.github/workflows/novel-ab.yml'
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install offline test dependencies
+        run: python -m pip install --disable-pip-version-check 'pytest>=8' 'python-dotenv>=1' 'pypdf>=4'
+      - name: Verify deterministic A/B without API keys
+        run: python -m pytest tests/test_novel_ab.py -q
