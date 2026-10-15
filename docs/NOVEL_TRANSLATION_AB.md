@@ -1,16 +1,16 @@
 # English → Turkish literary translation: controlled A/B experiment
 
-This is an **isolated experiment** on \`experiment/novel-translation-ab\`. It does **not** change the TransCraFT main branch.
+This is an **isolated experiment** on `experiment/novel-translation-ab`. It does **not** change the TransCraFT main branch.
 
 ## The precise research question
 
 > On the same English novel passage, how does the current generic
-> \`BookTranslationRunner\` output compare with a direct translation by
+> `BookTranslationRunner` output compare with a direct translation by
 > a chosen stronger model, judged blind by a human reader?
 
 **Important limitation:** The baseline is the *current generic BookTranslationRunner*:
 its draft translator plus its strategy, deterministic naturalness, and QA checks.
-It is **not** the entire \`main.py\` LangGraph/TIE agent pipeline.
+It is **not** the entire `main.py` LangGraph/TIE agent pipeline.
 The direct challenger uses the **same** BookTranslationRunner ingestion,
 chunking, and deterministic checks, replacing only the translation function.
 This keeps the text selection and output QA comparable. The project does not
@@ -18,35 +18,35 @@ yet establish that full TIE beats a direct strong model.
 
 ## Prerequisites
 
-- Python environment with the dependencies from \`requirements.txt\`
-- Your own input book in \`data/inputs/\` (EPUB, PDF, TXT, or Markdown)
+- Python environment with the dependencies from `requirements.txt`
+- Your own input book in `data/inputs/` (EPUB, PDF, TXT, or Markdown)
 - API credentials **only if running a real comparison**, not for tests/dry-run
 - Permission/rights to use the supplied text
 
-For the standard baseline, set \`OPENAI_API_KEY\` and optionally
-\`DEFAULT_MINI_MODEL\`. The baseline uses the current default
-\`gpt-4o-mini\`, unless changed in your environment.
+For the standard baseline, set `OPENAI_API_KEY` and optionally
+`DEFAULT_MINI_MODEL`. The baseline uses the current default
+`gpt-4o-mini`, unless changed in your environment.
 
-For a direct OpenAI challenger, choose the model explicitly via \`--model\`;
-do **not** assume the default \`DEFAULT_MAIN_MODEL\` is the newest model.
+For a direct OpenAI challenger, choose the model explicitly via `--model`;
+do **not** assume the default `DEFAULT_MAIN_MODEL` is the newest model.
 For Anthropic install the optional extra:
 
-\`\`\`bash
+```bash
 pip install langchain-anthropic
-\`\`\`
+```
 
-Set \`ANTHROPIC_API_KEY\` for Claude. Exact model IDs and pricing can change;
+Set `ANTHROPIC_API_KEY` for Claude. Exact model IDs and pricing can change;
 use an available model ID from your provider's current documentation.
 
 ## 1. Smoke test: no API calls or cost
 
-\`\`\`bash
+```bash
 python -m pytest tests/test_novel_ab.py -q
 python scripts/compare_novel_ab.py \
   --input data/inputs/your_novel.epub \
   --first-words 1000 \
   --dry-run
-\`\`\`
+```
 
 A dry run uses obvious **synthetic placeholders**. It only validates
 document ingestion, chunk alignment, artifact export, and blinded format.
@@ -54,7 +54,7 @@ document ingestion, chunk alignment, artifact export, and blinded format.
 
 ## 2. Real model comparison
 
-\`\`\`bash
+```bash
 # Keep your input file private; never commit full copyrighted books.
 cp .env.example .env
 # Set OPENAI_API_KEY in .env.
@@ -65,20 +65,20 @@ python scripts/compare_novel_ab.py \
   --chunk-chars 3200 \
   --provider openai \
   --model YOUR_ACCESSIBLE_OPENAI_MODEL_ID
-\`\`\`
+```
 
 Or for Claude:
 
-\`\`\`bash
+```bash
 python scripts/compare_novel_ab.py \
   --input data/inputs/your_novel.epub \
   --first-words 1000 \
   --provider anthropic \
   --model YOUR_ACCESSIBLE_CLAUDE_MODEL_ID
-\`\`\`
+```
 
 For a file with front-matter detection mistakes, choose
-\`--start-at beginning\` and confirm the source snippets in the blinded pack.
+`--start-at beginning` and confirm the source snippets in the blinded pack.
 This first experiment only translates a bounded word count, not an entire
 book. To avoid truncation, use complete chapters or adjust the selection.
 
@@ -88,20 +88,20 @@ experimental harness. Start with a short passage.
 
 ## 3. Read results without model labels
 
-Find the new folder at \`outputs/novel_ab/<run_id>/\`:
+Find the new folder at `outputs/novel_ab/<run_id>/`:
 
 | Output | Meaning |
 | --- | --- |
-| \`blind_review.md\` | English source + Candidate A/B, order independently randomized by passage, scorecard |
-| \`answer_key.json\` | Reveals which model generated A/B for each passage — do not open yet |
-| \`comparison.json\` | Run configuration, elapsed seconds and counts; no fabricated model ranking |
-| \`baseline/.../translation.md\` | Existing generic Book Runner's output |
-| \`direct/.../translation.md\` | Direct model's output |
-| \`*/.../metadata.json\` | Every original source chunk, output chunk and QA flags |
+| `blind_review.md` | English source + Candidate A/B, order independently randomized by passage, scorecard |
+| `answer_key.json` | Reveals which model generated A/B for each passage — do not open yet |
+| `comparison.json` | Run configuration, elapsed seconds and counts; no fabricated model ranking |
+| `baseline/.../translation.md` | Existing generic Book Runner's output |
+| `direct/.../translation.md` | Direct model's output |
+| `*/.../metadata.json` | Every original source chunk, output chunk and QA flags |
 
 Ask a fluent bilingual reader to score *fidelity, Turkish naturalness,
 literary voice, dialogue, paragraph preservation, omissions and invented
-meaning*. Record their preference before revealing \`answer_key.json\`.
+meaning*. Record their preference before revealing `answer_key.json`.
 For a stronger claim, repeat on multiple genres with more than one reviewer.
 
 **Do not interpret** deterministic QA recommendations or word counts as an
