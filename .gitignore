@@ -38,3 +38,6 @@ data/outputs/
 
 # Generated experiment outputs
 outputs/experiments/
+
+# Local blinded book comparison (may include copyrighted excerpts)
+outputs/novel_ab/
