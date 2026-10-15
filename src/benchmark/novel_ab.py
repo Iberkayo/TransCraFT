@@ -108,10 +108,9 @@ def _make_blind_review(
     direct_chunks: list[dict[str, Any]],
     seed: int,
     dry_run: bool,
-) -> tuple[str, dict[str, str]]:
-    names = ["baseline", "direct"]
-    random.Random(seed).shuffle(names)
-    labels = {"A": names[0], "B": names[1]}
+) -> tuple[str, dict[str, dict[str, str]]]:
+    rng = random.Random(seed)
+    answer_key: dict[str, dict[str, str]] = {}
     lines = [
         "# Blind EN → TR translation review",
         "",
@@ -128,6 +127,10 @@ def _make_blind_review(
     for index, (base, direct) in enumerate(
         zip(baseline_chunks, direct_chunks), start=1
     ):
+        arms = ["baseline", "direct"]
+        rng.shuffle(arms)
+        labels = {"A": arms[0], "B": arms[1]}
+        answer_key[f"passage_{index:03d}"] = labels
         translations = {
             "baseline": base["translation"],
             "direct": direct["translation"],
@@ -158,7 +161,7 @@ def _make_blind_review(
             "---",
             "",
         ])
-    return "\n".join(lines), labels
+    return "\n".join(lines), answer_key
 
 
 def run_novel_ab(
