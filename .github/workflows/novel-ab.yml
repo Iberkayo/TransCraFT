@@ -8,12 +8,16 @@ on:
       - 'src/benchmark/**'
       - 'scripts/compare_novel_ab.py'
       - 'tests/test_novel_ab.py'
+      - 'tests/test_score_novel_ab.py'
+      - 'scripts/score_novel_ab.py'
       - '.github/workflows/novel-ab.yml'
   pull_request:
     paths:
       - 'src/benchmark/**'
       - 'scripts/compare_novel_ab.py'
       - 'tests/test_novel_ab.py'
+      - 'tests/test_score_novel_ab.py'
+      - 'scripts/score_novel_ab.py'
       - '.github/workflows/novel-ab.yml'
 
 jobs:
@@ -27,4 +31,4 @@ jobs:
       - name: Install offline test dependencies
         run: python -m pip install --disable-pip-version-check 'pytest>=8' 'python-dotenv>=1' 'pypdf>=4'
       - name: Verify deterministic A/B without API keys
-        run: python -m pytest tests/test_novel_ab.py -q
+        run: python -m pytest tests/test_novel_ab.py tests/test_score_novel_ab.py -q
